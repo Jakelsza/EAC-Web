@@ -1,0 +1,2523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EVE Abyss Companion</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%233FB4FF' stroke-width='3' stroke-dasharray='56 20' stroke-linecap='round' transform='rotate(-90 16 16)'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   EVE ABYSS COMPANION — web edition
+   Design system: weather-reactive HUD. The accent colour of the
+   entire cockpit is driven by the selected filament weather.
+   ============================================================ */
+
+@property --accent {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: #3FB4FF;
+}
+
+:root {
+  /* base hull */
+  --void:   #04060A;
+  --hull:   #0B121B;
+  --hull-2: #0E1722;
+  --edge:   #1C2C3E;
+  --edge-2: #28405A;
+  --text:   #DCE9F5;
+  --dim:    #6E89A6;
+  --faint:  #3D5267;
+
+  /* fixed functional colours (kept from the spec — muscle memory) */
+  --good:   #4CFFB3;
+  --bad:    #FF5A5A;
+  --warn:   #FFB347;
+  --gold:   #FFD700;
+
+  /* ewar tag colours (spec standard) */
+  --tag-neut:  #C8A020;
+  --tag-scram: #CC3333;
+  --tag-web:   #CC6600;
+  --tag-damp:  #884DCC;
+  --tag-logi:  #22AA55;
+  --tag-paint: #888888;
+
+  /* weather-reactive accent (JS sets this) */
+  --accent: #3FB4FF;
+  transition: --accent .55s ease;
+
+  --accent-soft: color-mix(in oklab, var(--accent) 32%, transparent);
+  --accent-faint: color-mix(in oklab, var(--accent) 12%, transparent);
+  --accent-ink: color-mix(in oklab, var(--accent) 78%, #061018);
+
+  --notch: 13px;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", monospace;
+  --sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--void);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-x: hidden;
+}
+
+/* starfield + weather nebula */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, rgba(255,255,255,.40), transparent 60%),
+    radial-gradient(1px 1px at 31% 71%, rgba(255,255,255,.25), transparent 60%),
+    radial-gradient(1.5px 1.5px at 48% 12%, rgba(255,255,255,.30), transparent 60%),
+    radial-gradient(1px 1px at 64% 54%, rgba(255,255,255,.22), transparent 60%),
+    radial-gradient(1px 1px at 79% 28%, rgba(255,255,255,.34), transparent 60%),
+    radial-gradient(1.5px 1.5px at 88% 82%, rgba(255,255,255,.26), transparent 60%),
+    radial-gradient(1px 1px at 22% 92%, rgba(255,255,255,.20), transparent 60%),
+    radial-gradient(1px 1px at 55% 86%, rgba(255,255,255,.26), transparent 60%),
+    radial-gradient(1px 1px at 94% 8%,  rgba(255,255,255,.30), transparent 60%);
+}
+body::after {
+  content: ""; position: fixed; inset: -10%; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(60% 45% at 8% -5%,  color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(50% 40% at 100% 110%, color-mix(in oklab, var(--accent) 11%, transparent), transparent 70%);
+}
+
+#app { position: relative; z-index: 1; max-width: 1460px; margin: 0 auto; padding: 14px 18px 40px; }
+
+/* ---------- top bar ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 4px 14px;
+}
+.brand {
+  font-size: 15px; font-weight: 600; letter-spacing: .28em; text-transform: uppercase;
+  color: var(--text); white-space: nowrap;
+}
+.brand b { color: var(--accent); font-weight: 600; }
+.brand .ver {
+  margin-left: 10px; font-size: 10px; letter-spacing: .22em; color: var(--dim);
+  border: 1px solid var(--edge); padding: 2px 8px 1px; vertical-align: 2px;
+}
+.statusPill {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+  padding: 4px 12px; border: 1px solid var(--edge); color: var(--dim);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  background: var(--hull);
+}
+.statusPill.run    { color: var(--accent); border-color: var(--accent-soft); background: var(--accent-faint); }
+.statusPill.pend   { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 45%, transparent); }
+.statusPill.done   { color: var(--good); border-color: color-mix(in oklab, var(--good) 45%, transparent); }
+.topbar .spacer { flex: 1; }
+
+/* ---------- panels ---------- */
+.deck {
+  display: grid; grid-template-columns: 380px 1fr 318px; gap: 14px;
+  align-items: stretch;
+}
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, var(--hull-2), var(--hull));
+  border: 1px solid var(--edge);
+  clip-path: polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));
+  padding: 16px 18px 18px;
+}
+.eyebrow {
+  font-size: 10px; letter-spacing: .30em; text-transform: uppercase; color: var(--dim);
+  margin: 0 0 12px; display: flex; align-items: center; gap: 10px;
+}
+.eyebrow::before { content: ""; width: 16px; height: 1px; background: var(--accent); box-shadow: 0 0 6px var(--accent-soft); }
+.eyebrow .tail { flex: 1; height: 1px; background: var(--edge); }
+
+/* ---------- timer ring ---------- */
+.ringWrap { position: relative; width: 252px; margin: 4px auto 8px; }
+.ringWrap svg { display: block; width: 100%; height: auto; }
+.ringBg { fill: none; stroke: var(--edge); stroke-width: 5; }
+.ringTick { stroke: var(--faint); stroke-width: 1; }
+.ringFg {
+  fill: none; stroke: var(--accent); stroke-width: 5; stroke-linecap: round;
+  filter: drop-shadow(0 0 6px var(--accent-soft));
+  transition: stroke .4s ease;
+}
+.ringFg.low { stroke: var(--bad); filter: drop-shadow(0 0 8px color-mix(in oklab, var(--bad) 55%, transparent)); }
+.ringCenter {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 4px; text-align: center;
+}
+.timer {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 52px; font-weight: 600; letter-spacing: .02em; line-height: 1;
+  color: var(--text); text-shadow: 0 0 18px var(--accent-faint);
+}
+.timer.low { color: var(--bad); animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .55; } }
+.runStatus {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .26em; color: var(--dim);
+}
+.runStatus.run  { color: var(--accent); }
+.runStatus.pend { color: var(--warn); }
+
+.roomLine { text-align: center; font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--dim); margin: 6px 0 8px; }
+.roomLine b { color: var(--text); }
+
+.roomBtns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.roomBtn {
+  font-family: var(--mono); font-size: 13px; letter-spacing: .08em;
+  padding: 9px 0; cursor: pointer;
+  background: var(--hull); color: var(--text);
+  border: 1px solid var(--edge-2);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+.roomBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.roomBtn:disabled { opacity: .32; cursor: default; }
+.roomBtn.done { border-color: color-mix(in oklab, var(--good) 50%, transparent); color: var(--good); opacity: .75; }
+.roomBtn.flash { animation: roomFlash .5s ease; }
+@keyframes roomFlash {
+  0% { background: var(--accent); color: #041018; }
+  100% { background: var(--hull); }
+}
+
+.splitLine { text-align: center; font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; min-height: 17px; margin-top: 8px; }
+
+/* drone control */
+.droneRow { display: flex; gap: 8px; margin-top: 10px; }
+.droneRow[hidden] { display: none; }
+.droneRow .btn { flex: 1; }
+.btnDrone { border-color: color-mix(in oklab, var(--warn) 45%, transparent); color: var(--warn); }
+.btnDrone:hover:not(:disabled) { background: color-mix(in oklab, var(--warn) 14%, transparent); border-color: var(--warn); }
+.btnDrone.flagged { background: color-mix(in oklab, var(--warn) 18%, transparent); border-color: var(--warn); }
+.droneWarn {
+  text-align: center; font-size: 12px; letter-spacing: .06em; color: var(--warn);
+  min-height: 18px; margin-top: 8px; font-weight: 600;
+}
+.droneWarn.show { animation: pulse 1s ease-in-out infinite; }
+
+/* ---------- buttons ---------- */
+.btn {
+  font-family: var(--sans); font-size: 13px; font-weight: 600; letter-spacing: .04em;
+  padding: 9px 14px; cursor: pointer;
+  background: var(--hull); color: var(--text);
+  border: 1px solid var(--edge-2);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+}
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .32; cursor: default; }
+.btn:focus-visible, .segBtn:focus-visible, .roomBtn:focus-visible, .tabBtn:focus-visible {
+  outline: 1px solid var(--accent); outline-offset: 2px;
+}
+.btn.primary {
+  background: var(--accent); border-color: var(--accent); color: #041018;
+  text-shadow: none;
+}
+.btn.primary:hover:not(:disabled) { color: #041018; filter: brightness(1.12); }
+.btn.success { border-color: color-mix(in oklab, var(--good) 55%, transparent); color: var(--good); }
+.btn.success:hover:not(:disabled) { background: color-mix(in oklab, var(--good) 14%, transparent); border-color: var(--good); color: var(--good); }
+.btn.danger { border-color: color-mix(in oklab, var(--bad) 50%, transparent); color: var(--bad); }
+.btn.danger:hover:not(:disabled) { background: color-mix(in oklab, var(--bad) 12%, transparent); border-color: var(--bad); color: var(--bad); }
+.btn.block { display: block; width: 100%; }
+.btn.mini { font-size: 11px; padding: 4px 10px; font-weight: 500; }
+
+/* segmented selectors */
+.seg { display: flex; flex-wrap: wrap; gap: 5px; }
+.segBtn {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+  padding: 6px 10px; cursor: pointer;
+  background: transparent; color: var(--dim);
+  border: 1px solid var(--edge);
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.segBtn:hover { color: var(--text); border-color: var(--edge-2); }
+.segBtn.on {
+  background: var(--accent-faint); border-color: var(--accent); color: var(--accent);
+  box-shadow: inset 0 0 12px var(--accent-faint);
+}
+
+/* fields */
+.fieldRow { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.fieldRow label { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); width: 58px; }
+.fieldRow input {
+  flex: 1; min-width: 0;
+  font-family: var(--mono); font-size: 14px;
+  background: var(--void); color: var(--text);
+  border: 1px solid var(--edge-2); padding: 8px 10px;
+  clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
+}
+.fieldRow input::placeholder { color: var(--faint); }
+.fieldRow input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-faint); }
+.fieldRow.hi input { border-color: var(--accent-soft); background: color-mix(in oklab, var(--accent) 6%, var(--void)); }
+.deltaTag { font-family: var(--mono); font-size: 13px; min-width: 86px; text-align: right; color: var(--dim); }
+.deltaTag.up { color: var(--good); }
+.deltaTag.dn { color: var(--bad); }
+
+.workLabel { font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); margin: 12px 0 6px; }
+.actionRow { display: flex; gap: 8px; margin: 14px 0 4px; }
+.actionRow .btn { flex: 1; }
+
+.lastRun {
+  margin-top: 14px; padding: 8px 12px;
+  border: 1px dashed var(--edge); color: var(--dim);
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+}
+.lastRun b { color: var(--text); }
+
+/* ---------- systems panel ---------- */
+.togRow {
+  display: flex; align-items: center; gap: 10px; padding: 7px 0; cursor: pointer;
+  user-select: none; font-size: 13px;
+}
+.togRow input { display: none; }
+.togBox {
+  width: 30px; height: 16px; border: 1px solid var(--edge-2); position: relative; flex: none;
+  background: var(--void);
+}
+.togBox::after {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px;
+  background: var(--faint); transition: left .15s ease, background .15s ease;
+}
+.togRow input:checked + .togBox { border-color: var(--accent); }
+.togRow input:checked + .togBox::after { left: 16px; background: var(--accent); }
+
+.monStatus {
+  margin: 10px 0; padding: 9px 11px; border: 1px solid var(--edge);
+  font-family: var(--mono); font-size: 11px; line-height: 1.7; color: var(--dim);
+  word-break: break-all;
+}
+.monStatus b { color: var(--text); font-weight: 500; }
+.monStatus .ok { color: var(--good); }
+.monStatus .err { color: var(--warn); }
+.sysBtns { display: flex; flex-direction: column; gap: 7px; }
+.divider { height: 1px; background: var(--edge); margin: 14px 0; }
+
+/* ---------- tabs / data bay ---------- */
+.bay { margin-top: 16px; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--edge); padding: 0 6px; }
+.tabBtn {
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+  background: none; border: none; color: var(--dim); cursor: pointer;
+  padding: 10px 16px 9px; border-bottom: 2px solid transparent; margin-bottom: -1px;
+}
+.tabBtn:hover { color: var(--text); }
+.tabBtn.on { color: var(--accent); border-bottom-color: var(--accent); }
+.tabPane { display: none; padding: 16px 4px 0; }
+.tabPane.on { display: block; }
+
+/* ---------- NPC library ---------- */
+.libGrid { display: grid; grid-template-columns: 420px 1fr; gap: 14px; align-items: start; }
+.npcDetail .npcName { font-size: 21px; font-weight: 650; letter-spacing: .02em; margin: 2px 0 4px; }
+.npcMeta { font-family: var(--mono); font-size: 11.5px; color: var(--dim); letter-spacing: .04em; margin-bottom: 12px; }
+.npcMeta b { color: var(--accent); font-weight: 500; }
+.dBlock { margin: 12px 0; }
+.dBlock h4 { font-size: 10px; letter-spacing: .26em; text-transform: uppercase; color: var(--dim); margin: 0 0 5px; }
+.dBlock p { margin: 0; color: var(--text); font-size: 13px; }
+.dBlock pre {
+  margin: 0; padding: 10px; background: var(--void); border: 1px solid var(--edge);
+  font-family: var(--mono); font-size: 11px; line-height: 1.55; color: var(--dim);
+  max-height: 200px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+}
+.tagChips { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.libCtl { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.libCtl select, .libCtl input[type=text] {
+  font-family: var(--sans); font-size: 12.5px; background: var(--void); color: var(--text);
+  border: 1px solid var(--edge-2); padding: 7px 9px;
+}
+.libCtl select:focus, .libCtl input:focus { outline: none; border-color: var(--accent); }
+.libCtl input[type=text] { width: 170px; }
+.matchCount { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; }
+.btn.toggleOn { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); }
+
+.npcHead, .npcRow {
+  display: grid; grid-template-columns: 2.1fr 1.3fr 1.1fr .7fr .7fr; gap: 8px;
+  padding: 7px 10px; align-items: center;
+}
+.npcHead {
+  font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim);
+  border-bottom: 1px solid var(--edge);
+}
+.npcRows { max-height: 430px; overflow-y: auto; }
+.npcRow { font-size: 12.5px; cursor: pointer; border-bottom: 1px solid color-mix(in oklab, var(--edge) 45%, transparent); }
+.npcRow:hover { background: var(--accent-faint); }
+.npcRow.sel { background: var(--accent-faint); box-shadow: inset 2px 0 0 var(--accent); }
+.npcRow .nm { display: flex; align-items: center; gap: 7px; color: var(--text); }
+.npcRow .nm .det { width: 6px; height: 6px; background: var(--accent); box-shadow: 0 0 6px var(--accent); flex: none; }
+.npcRow .fam, .npcRow .cls { color: var(--dim); font-size: 11.5px; }
+.npcRow .th, .npcRow .kp { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.th.t-High, .th.t-VeryHigh { color: var(--warn); }
+.th.t-VeryHigh { color: var(--bad); }
+.kp.k-First { color: var(--bad); }
+.kp.k-Early { color: var(--warn); }
+.kp.k-Last { color: var(--gold); }
+.emptyRows { padding: 22px 10px; color: var(--faint); font-size: 12.5px; }
+
+/* ---------- history / stats ---------- */
+.tblWrap { overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.data th {
+  text-align: left; font-size: 10px; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--dim); font-weight: 500; padding: 7px 10px; border-bottom: 1px solid var(--edge);
+  white-space: nowrap;
+}
+table.data td { padding: 7px 10px; border-bottom: 1px solid color-mix(in oklab, var(--edge) 45%, transparent); font-family: var(--mono); font-size: 11.5px; color: var(--text); white-space: nowrap; }
+table.data td.dimc { color: var(--dim); }
+td.up { color: var(--good); } td.dn { color: var(--bad); }
+.barRow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.histCount { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; }
+
+.statCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.statCard { border: 1px solid var(--edge); padding: 12px 14px; background: var(--hull); }
+.statCard .k { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+.statCard .v { font-family: var(--mono); font-size: 21px; margin-top: 5px; font-variant-numeric: tabular-nums; }
+.statCard .v.good { color: var(--good); }
+.statTables { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+
+/* ---------- about ---------- */
+.aboutWrap { max-width: 640px; }
+.aboutWrap h2 { font-size: 19px; letter-spacing: .14em; text-transform: uppercase; margin: 4px 0 2px; }
+.aboutWrap .tag { color: var(--accent); font-style: italic; margin-bottom: 14px; }
+.aboutWrap p { color: var(--dim); font-size: 13px; }
+.aboutWrap a { color: var(--accent); text-decoration: none; }
+.aboutWrap a:hover { text-decoration: underline; }
+.linkList { list-style: none; padding: 0; margin: 8px 0; }
+.linkList li { padding: 4px 0; font-size: 13px; color: var(--dim); }
+.linkList b { color: var(--text); font-weight: 500; display: inline-block; min-width: 72px; }
+.fineprint { font-size: 11px; color: var(--faint); margin-top: 18px; line-height: 1.6; }
+
+/* ============================================================
+   OVERLAY (also rendered inside the Picture-in-Picture window)
+   ============================================================ */
+.pipBody { margin: 0; background: var(--void); color: var(--text); font-family: var(--sans); font-size: 13px; overflow-y: auto; }
+.ovRoot { padding: 10px 12px 14px; min-height: 100%; }
+#overlayDock { position: fixed; right: 18px; top: 70px; z-index: 50; width: 372px; }
+#overlayDock .ovRoot {
+  background: linear-gradient(180deg, var(--hull-2), var(--hull));
+  border: 1px solid var(--edge-2);
+  clip-path: polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+}
+.ovHead { display: flex; align-items: center; gap: 8px; padding: 2px 0 8px; cursor: grab; }
+.ovHead .ovTitle { font-size: 10px; letter-spacing: .3em; color: var(--dim); text-transform: uppercase; }
+.ovHead .ovTitle b { color: var(--accent); }
+.ovHead .spacer { flex: 1; }
+
+.ovPanel { border: 1px solid var(--edge); background: color-mix(in oklab, var(--hull) 70%, transparent); padding: 9px 10px 10px; margin-bottom: 10px; }
+.ovPanelHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+.ovPanelHead span { font-size: 10px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+.chips .empty { color: var(--faint); font-size: 12px; padding: 2px 1px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  padding: 4px 8px; border: 1px solid; line-height: 1.2;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+.chip .tags { display: inline-flex; gap: 4px; }
+.chip .t { font-size: 9px; font-weight: 700; letter-spacing: .06em; padding: 1px 4px; border-radius: 1px; color: #04060A; }
+.chip .kp { font-size: 9px; letter-spacing: .1em; opacity: .85; font-family: var(--mono); }
+.chip.boss { border-color: var(--gold) !important; box-shadow: 0 0 10px color-mix(in oklab, var(--gold) 35%, transparent); }
+.chip.boss::before { content: "◆"; color: var(--gold); font-size: 9px; }
+.chip.last { background: color-mix(in oklab, var(--gold) 80%, #1a1503) !important; color: #100D02 !important; border-color: var(--gold) !important; }
+.chip.last .kp { color: #4d3f00; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 9px; padding-top: 8px; border-top: 1px solid color-mix(in oklab, var(--edge) 60%, transparent); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; font-size: 9.5px; letter-spacing: .08em; color: var(--dim); text-transform: uppercase; }
+.legend i { width: 8px; height: 8px; display: inline-block; }
+
+.ovTimerBlock { text-align: center; padding: 4px 0 10px; }
+.ovTimerBlock .timer { font-size: 42px; }
+.ovStatus { font-family: var(--mono); font-size: 10.5px; letter-spacing: .22em; color: var(--dim); margin-top: 3px; }
+.ovStatus.run { color: var(--accent); }
+.ovStatus.pend { color: var(--warn); }
+.ovTW { font-family: var(--mono); font-size: 11px; color: var(--text); letter-spacing: .1em; margin-top: 2px; }
+
+.ovGrid { display: grid; grid-template-columns: 1fr 108px; gap: 10px; }
+.ovGrid .workLabel { margin: 8px 0 4px; }
+.ovGrid .workLabel:first-child { margin-top: 0; }
+.ovGrid .seg .segBtn { padding: 4px 7px; font-size: 10.5px; }
+.ovGrid .roomBtns { gap: 5px; }
+.ovGrid .roomBtn { padding: 6px 0; font-size: 11.5px; }
+.ovGrid .fieldRow { margin: 6px 0; gap: 6px; }
+.ovGrid .fieldRow label { width: 46px; font-size: 9.5px; }
+.ovGrid .fieldRow input { font-size: 12px; padding: 6px 8px; }
+.ovGrid .deltaTag { min-width: 0; font-size: 11.5px; }
+.ovActions { display: flex; flex-direction: column; gap: 7px; }
+.ovActions .btn { font-size: 12px; padding: 8px 6px; }
+.ovRoomLine { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; color: var(--dim); margin: 2px 0 4px; }
+.ovRoomLine b { color: var(--text); }
+.ovDroneWarn { font-size: 11px; color: var(--warn); font-weight: 600; min-height: 15px; margin-top: 4px; }
+.ovDroneWarn.show { animation: pulse 1s ease-in-out infinite; }
+
+/* ---------- setup wizard ---------- */
+.modalBack {
+  position: fixed; inset: 0; z-index: 100; display: none;
+  background: rgba(2,4,8,.78); backdrop-filter: blur(3px);
+  align-items: center; justify-content: center; padding: 20px;
+}
+.modalBack.on { display: flex; }
+.wizard {
+  width: 560px; max-width: 100%;
+  background: linear-gradient(180deg, var(--hull-2), var(--hull));
+  border: 1px solid var(--edge-2);
+  clip-path: polygon(var(--notch) 0, 100% 0, 100% calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, 0 100%, 0 var(--notch));
+  padding: 24px 28px 24px;
+}
+.wizSteps { display: flex; gap: 6px; margin-bottom: 18px; }
+.wizSteps i { height: 2px; flex: 1; background: var(--edge); }
+.wizSteps i.on { background: var(--accent); box-shadow: 0 0 8px var(--accent-soft); }
+.wizard h2 { margin: 0 0 10px; font-size: 19px; letter-spacing: .04em; }
+.wizard p { color: var(--dim); font-size: 13px; margin: 8px 0; }
+.wizard ul { color: var(--dim); font-size: 13px; margin: 8px 0; padding-left: 18px; }
+.wizard ul li { padding: 2px 0; }
+.wizFolder { display: flex; gap: 8px; margin: 14px 0 6px; }
+.wizFolder input { flex: 1; font-family: var(--mono); font-size: 12px; background: var(--void); color: var(--text); border: 1px solid var(--edge-2); padding: 8px 10px; }
+.wizHint { font-size: 11.5px; color: var(--faint); }
+.wizNav { display: flex; justify-content: space-between; gap: 10px; margin-top: 22px; }
+.wizNav .right { margin-left: auto; display: flex; gap: 10px; }
+.safeNote { border-left: 2px solid var(--good); padding: 6px 12px; font-size: 12px; color: var(--dim); margin-top: 12px; }
+.safeNote b { color: var(--good); font-weight: 600; }
+
+/* ---------- toasts ---------- */
+#toasts { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.toast {
+  font-size: 12.5px; padding: 9px 16px; max-width: 480px;
+  background: var(--hull-2); border: 1px solid var(--accent-soft); color: var(--text);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
+  animation: toastIn .2s ease;
+}
+.toast.warn { border-color: color-mix(in oklab, var(--warn) 55%, transparent); }
+.toast.good { border-color: color-mix(in oklab, var(--good) 55%, transparent); }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } }
+
+/* ---------- scrollbars ---------- */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb { background: var(--edge-2); border: 2px solid var(--void); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-soft); }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1180px) {
+  .deck { grid-template-columns: 340px 1fr; }
+  .pSys { grid-column: 1 / -1; }
+  .libGrid { grid-template-columns: 1fr; }
+}
+@media (max-width: 800px) {
+  .deck { grid-template-columns: 1fr; }
+  #app { padding: 10px 12px 30px; }
+  .brand { letter-spacing: .18em; font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { transition: none; }
+  .timer.low, .droneWarn.show, .ovDroneWarn.show { animation: none; }
+  .roomBtn.flash { animation: none; }
+}
+
+/* ============================================================
+   v2.1 additions — responsive overlay, records, stats, sessions, guide
+   ============================================================ */
+.mono { font-family: var(--mono); }
+
+/* workflow-panel detected NPCs */
+.workDetect { margin-top: 14px; }
+.workDetect .chips { min-height: 24px; }
+
+/* ---- responsive overlay: everything scales with the window width ---- */
+.pipBody, #overlayDock { container-type: inline-size; }
+.ovRoot { padding: .7em .85em 1em; font-size: clamp(9px, 3.4cqw, 18px); }
+.ovHead { padding: .15em 0 .6em; }
+.ovHead .ovTitle { font-size: .72em; }
+.ovPanel { padding: .65em .7em .7em; margin-bottom: .7em; }
+.ovPanelHead { margin-bottom: .5em; }
+.ovPanelHead span { font-size: .7em; }
+.ovRoot .chips { gap: .45em; min-height: 2em; }
+.ovRoot .chip { font-size: .82em; padding: .28em .6em; gap: .42em; }
+.ovRoot .chip .t { font-size: .66em; padding: .08em .32em; }
+.ovRoot .chip .kp { font-size: .66em; }
+.ovRoot .legend { gap: .3em .8em; margin-top: .65em; padding-top: .6em; }
+.ovRoot .legend span { font-size: .68em; }
+.ovRoot .legend i { width: .6em; height: .6em; }
+.ovTimerBlock { padding: .3em 0 .7em; }
+.ovTimerBlock .timer { font-size: 3.15em; }
+.ovStatus { font-size: .8em; margin-top: .2em; }
+.ovTW { font-size: .82em; margin-top: .15em; }
+.ovGrid { grid-template-columns: 1fr 7.7em; gap: .7em; }
+.ovGrid .workLabel { font-size: .72em; margin: .6em 0 .3em; }
+.ovGrid .seg { gap: .35em; }
+.ovGrid .seg .segBtn { font-size: .78em; padding: .3em .5em; }
+.ovGrid .roomBtns { gap: .35em; }
+.ovGrid .roomBtn { font-size: .85em; padding: .45em 0; }
+.ovGrid .fieldRow { margin: .45em 0; gap: .45em; }
+.ovGrid .fieldRow label { width: 3.4em; font-size: .7em; }
+.ovGrid .fieldRow input { font-size: .85em; padding: .42em .55em; }
+.ovGrid .deltaTag { font-size: .82em; min-width: 0; }
+.ovRoomLine { font-size: .78em; margin: .15em 0 .3em; }
+.ovDroneWarn { font-size: .8em; margin-top: .3em; min-height: 1.1em; }
+.ovActions { gap: .5em; }
+.ovActions .btn { font-size: .85em; padding: .55em .4em; }
+
+/* ---- history records ---- */
+.recRow { position: relative; }
+.recRow.rt { box-shadow: inset 3px 0 0 var(--good); }
+.recRow.rl { box-shadow: inset 3px 0 0 var(--gold); }
+.recRow.rc { box-shadow: inset 3px 0 0 var(--accent); }
+.recRow.rt.rl, .recRow.rl.rc, .recRow.rt.rc, .recRow.rt.rl.rc {
+  box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 color-mix(in oklab, var(--gold) 80%, transparent);
+}
+.recRow td:first-child { background: color-mix(in oklab, var(--accent) 5%, transparent); }
+.recBadges { display: inline-flex; gap: 3px; margin-left: 7px; vertical-align: 1px; }
+.rb {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px; border-radius: 2px; font-style: normal;
+  font-size: 9px; font-weight: 700; font-family: var(--sans); color: #04060A;
+}
+.rb-t { background: var(--good); }
+.rb-l { background: var(--gold); }
+.rb-c { background: var(--accent); }
+.recKey { font-size: 10.5px; color: var(--dim); letter-spacing: .04em; display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.recKey .rb { width: 13px; height: 13px; }
+.recKeyNote { color: var(--faint); }
+
+/* ---- stats: scope + filters ---- */
+.statScope { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.scopeNote { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .03em; }
+.filterRow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.filterRow[hidden] { display: none; }
+.filterRow.sub { margin-bottom: 14px; padding-left: 14px; border-left: 1px solid var(--edge); }
+.filtBtn { font-family: var(--mono); }
+
+.statSection { margin-top: 22px; }
+.statSection > .workLabel { margin-bottom: 8px; }
+
+.recHi td { background: var(--accent-faint); }
+.recHi td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* recommendations */
+.recoWrap { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.recoBlock { border: 1px solid var(--edge); padding: 10px 12px 12px; background: var(--hull); }
+.recoTier { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; color: var(--accent); margin-bottom: 6px; }
+.recoTable td, .recoTable th { padding: 5px 8px; }
+.recoBest td { background: color-mix(in oklab, var(--good) 9%, transparent); color: var(--text); }
+.recoBest td:first-child { color: var(--good); font-weight: 600; }
+.recoEmpty { font-family: var(--mono); font-size: 12px; color: var(--faint); padding: 6px 2px; }
+
+/* ---- sessions ---- */
+.sessionBar { margin-bottom: 14px; }
+.sessForm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; border: 1px dashed var(--edge); padding: 10px 12px; }
+.sessFormLabel { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+.sessForm input[type=text] { flex: 1; min-width: 120px; font-family: var(--sans); font-size: 13px; background: var(--void); color: var(--text); border: 1px solid var(--edge-2); padding: 7px 9px; }
+.sessForm input[type=number] { width: 64px; font-family: var(--mono); font-size: 13px; background: var(--void); color: var(--text); border: 1px solid var(--edge-2); padding: 7px 9px; }
+.sessForm input:focus { outline: none; border-color: var(--accent); }
+.sessTimes { color: var(--faint); font-family: var(--mono); }
+.sessRunsLbl { font-size: 11px; color: var(--dim); letter-spacing: .1em; }
+.sessActive { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border: 1px solid var(--accent-soft); background: var(--accent-faint); padding: 10px 14px; }
+.sessInfo { display: flex; flex-direction: column; gap: 2px; }
+.sessName { font-size: 14px; font-weight: 600; color: var(--text); }
+.sessProg { font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: .08em; }
+.progTrack { flex: 1; min-width: 120px; height: 6px; background: var(--void); border: 1px solid var(--edge-2); overflow: hidden; }
+.progFill { height: 100%; background: var(--accent); box-shadow: 0 0 10px var(--accent-soft); transition: width .3s ease; }
+
+.sessionList { display: flex; flex-direction: column; gap: 2px; }
+.sessRow { display: grid; grid-template-columns: 96px 1fr auto auto auto; gap: 12px; align-items: center; padding: 9px 10px; cursor: pointer; border-bottom: 1px solid color-mix(in oklab, var(--edge) 45%, transparent); font-size: 12.5px; }
+.sessRow:hover { background: var(--accent-faint); }
+.sessRow.open { background: var(--accent-faint); box-shadow: inset 2px 0 0 var(--accent); }
+.sessRow .sDate { font-family: var(--mono); font-size: 11px; color: var(--dim); }
+.sessRow .sName { color: var(--text); font-weight: 500; }
+.sessRow .sMeta { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
+.sessRow .sMeta.up { color: var(--good); }
+.sessDetail { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; padding: 12px 14px 14px; background: var(--void); border-bottom: 1px solid var(--edge); }
+.sKv { display: flex; flex-direction: column; gap: 2px; }
+.sKv i { font-style: normal; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; color: var(--dim); }
+.sKv b { font-family: var(--mono); font-size: 14px; color: var(--text); font-weight: 600; }
+
+/* ---- guide ---- */
+.guideWrap { max-width: 720px; }
+.guideWrap h2 { font-size: 19px; letter-spacing: .14em; text-transform: uppercase; margin: 4px 0 2px; }
+.guideWrap .tag { color: var(--accent); font-style: italic; margin-bottom: 16px; }
+.gSection { margin: 18px 0; padding-left: 14px; border-left: 1px solid var(--edge); }
+.gSection h3 { font-size: 13px; letter-spacing: .08em; color: var(--accent); margin: 0 0 6px; font-weight: 600; }
+.gSection p { color: var(--dim); font-size: 13px; margin: 6px 0; line-height: 1.6; }
+.gSection p b { color: var(--text); font-weight: 600; }
+.gSection .mono { color: var(--text); font-size: 12px; }
+.legendList { list-style: none; padding: 0; margin: 8px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 14px; }
+.legendList li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dim); padding: 2px 0; }
+.legendList li b { color: var(--text); font-weight: 600; }
+.legendList i { width: 10px; height: 10px; flex: none; display: inline-block; }
+.legendList i.goldDot { background: transparent; border: 1px solid var(--gold); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand"><b>EVE</b>&nbsp;Abyss Companion<span class="ver">Web Edition</span></div>
+    <div class="statusPill" id="statusPill">READY</div>
+    <div class="spacer"></div>
+    <button class="btn mini" data-action="toggleOverlay" data-overlaybtn>Overlay ▶</button>
+  </header>
+
+  <main>
+    <section class="deck">
+
+      <!-- ============ TIMER PANEL ============ -->
+      <div class="panel pTimer">
+        <div class="eyebrow">Filament timer<span class="tail"></span></div>
+        <div class="ringWrap">
+          <svg viewBox="0 0 200 200" aria-hidden="true">
+            <circle class="ringBg" cx="100" cy="100" r="88"/>
+            <circle class="ringFg" data-ring cx="100" cy="100" r="88" transform="rotate(-90 100 100)"/>
+          </svg>
+          <div class="ringCenter">
+            <div class="timer" data-bind="timer">20:00</div>
+            <div class="runStatus" data-bind="runstatus">READY</div>
+          </div>
+        </div>
+        <div class="roomLine" data-bind="roomdisp">Room: <b>1</b> / 3</div>
+        <div class="roomBtns" data-rooms></div>
+        <div class="splitLine" data-bind="splits"></div>
+        <div class="droneRow" data-dronectl></div>
+        <div class="droneWarn" data-bind="dronewarn"></div>
+      </div>
+
+      <!-- ============ WORKFLOW PANEL ============ -->
+      <div class="panel pWork">
+        <div class="eyebrow">Run workflow<span class="tail"></span></div>
+        <div class="workLabel">Tier</div>
+        <div class="seg" data-seg="tier"></div>
+        <div class="workLabel">Weather</div>
+        <div class="seg" data-seg="weather"></div>
+        <div class="fieldRow hi">
+          <label>Before</label>
+          <input data-model="before" inputmode="decimal" placeholder="Est. price — M ISK" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="actionRow">
+          <button class="btn primary" data-action="start">▶ Start</button>
+          <button class="btn" data-action="reset">↺ Reset</button>
+          <button class="btn danger" data-action="end">■ End</button>
+        </div>
+        <div class="fieldRow">
+          <label>After</label>
+          <input data-model="after" inputmode="decimal" placeholder="Est. price — M ISK" autocomplete="off" spellcheck="false">
+          <span class="deltaTag" data-bind="delta">—</span>
+        </div>
+        <button class="btn success block" data-action="submit">✓ Submit &amp; End</button>
+        <div class="lastRun" id="lastRun">No runs logged yet.</div>
+        <div class="workDetect">
+          <div class="workLabel" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Detected NPCs</span>
+            <button class="btn mini" data-action="clearDetected" data-show="hasDetected">Clear</button>
+          </div>
+          <div class="chips" id="workChips"></div>
+        </div>
+      </div>
+
+      <!-- ============ SYSTEMS PANEL ============ -->
+      <div class="panel pSys">
+        <div class="eyebrow">Systems<span class="tail"></span></div>
+        <label class="togRow"><input type="checkbox" id="optOverlayAlways"><span class="togBox"></span>Always keep overlay on</label>
+        <label class="togRow"><input type="checkbox" id="optAutoDetect"><span class="togBox"></span>Auto-detect NPCs from log</label>
+        <label class="togRow"><input type="checkbox" id="optAudio"><span class="togBox"></span>Audio cues at 5:00 / 1:00 / 0:00</label>
+        <label class="togRow"><input type="checkbox" id="optUseDrones"><span class="togBox"></span>I use drones (show drone repair flag)</label>
+        <div class="monStatus" id="monStatus">Log monitor: initialising…</div>
+        <div class="sysBtns">
+          <button class="btn" data-action="pickFolder">Choose Gamelogs folder…</button>
+          <button class="btn" data-action="resumeFolder" id="btnResume" hidden>Resume folder access</button>
+          <button class="btn" data-action="toggleOverlay" data-overlaybtn>Overlay ▶</button>
+        </div>
+        <div class="divider"></div>
+        <div class="workLabel" style="margin-top:0">NPC dataset</div>
+        <div class="monStatus" id="dsInfo"></div>
+        <div class="sysBtns">
+          <button class="btn" data-action="importDataset">Import dataset (.json)…</button>
+          <button class="btn" data-action="restoreDataset">Restore bundled dataset</button>
+        </div>
+        <div class="divider"></div>
+        <div class="sysBtns">
+          <button class="btn" data-action="exportJson">Export data (JSON)</button>
+          <button class="btn" data-action="exportCsv">Export history (CSV)</button>
+          <button class="btn" data-action="rerunSetup">Re-run setup</button>
+          <button class="btn danger" data-action="resetAll">Reset all data…</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ DATA BAY ============ -->
+    <section class="bay">
+      <nav class="tabs">
+        <button class="tabBtn on" data-tab="lib">NPC Library</button>
+        <button class="tabBtn" data-tab="hist">History</button>
+        <button class="tabBtn" data-tab="stats">Stats</button>
+        <button class="tabBtn" data-tab="guide">Guide</button>
+        <button class="tabBtn" data-tab="about">About</button>
+      </nav>
+
+      <div class="tabPane on" id="tab-lib">
+        <div class="libGrid">
+          <div class="panel npcDetail">
+            <div class="npcName" id="dName">NPC Library</div>
+            <div class="npcMeta" id="dMeta"></div>
+            <div class="dBlock"><h4>Notes</h4><p id="dNotes">Select an NPC from the list to see details.</p></div>
+            <div class="dBlock"><h4>Quick handle</h4><p id="dQuick"></p></div>
+            <div class="dBlock"><h4>Tags</h4><div class="tagChips" id="dTags"></div></div>
+            <div class="dBlock"><h4>Abyss dataset</h4><pre id="dRaw"></pre></div>
+          </div>
+          <div class="panel">
+            <div class="libCtl">
+              <select id="famFilter"></select>
+              <input type="text" id="npcSearch" placeholder="Search…" spellcheck="false">
+              <span class="matchCount" id="matchCount"></span>
+              <span style="flex:1"></span>
+              <button class="btn mini toggleOn" data-action="libAll" id="btnLibAll">Show All</button>
+              <button class="btn mini" data-action="libDetected" id="btnLibDet">Show Detected</button>
+              <button class="btn mini" data-action="clearDetected" id="btnLibClear" hidden>Clear Detected</button>
+              <button class="btn mini" data-action="libClearSearch">Clear Search</button>
+            </div>
+            <div class="npcHead"><span>Name</span><span>Family</span><span>Class</span><span>Threat</span><span>Kill</span></div>
+            <div class="npcRows" id="npcRows"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabPane" id="tab-hist">
+        <div class="barRow">
+          <button class="btn mini danger" data-action="clearHistory">Clear history…</button>
+          <span class="histCount" id="histCount"></span>
+          <span class="recKey"><i class="rb rb-t">T</i> best time <i class="rb rb-l">$</i> best loot <i class="rb rb-c">★</i> best ISK/hr <span class="recKeyNote">· per tier + weather</span></span>
+        </div>
+        <div class="tblWrap"><table class="data">
+          <thead><tr><th>Time</th><th>Tier</th><th>Weather</th><th>Rooms</th><th>Elapsed</th><th>Remain</th><th>Splits</th><th>Loot (M)</th></tr></thead>
+          <tbody id="histRows"></tbody>
+        </table></div>
+      </div>
+
+      <div class="tabPane" id="tab-stats">
+        <div class="sessionBar" id="sessionBar"></div>
+
+        <div class="statScope">
+          <button class="btn mini scopeBtn toggleOn" data-scope="all">All Time</button>
+          <button class="btn mini scopeBtn" data-scope="session">This Session</button>
+          <span class="scopeNote" id="scopeNote"></span>
+        </div>
+
+        <div class="filterRow" id="tierFilter"></div>
+        <div class="filterRow sub" id="weatherFilter"></div>
+
+        <div class="statCards" id="statCards"></div>
+
+        <div class="statSection">
+          <div class="workLabel">Records — all-time best per tier + weather</div>
+          <div class="tblWrap"><table class="data">
+            <thead><tr><th>Tier</th><th>Weather</th><th>Best time</th><th>Best loot</th><th>Best ISK/hr</th></tr></thead>
+            <tbody id="recordRows"></tbody>
+          </table></div>
+        </div>
+
+        <div class="statSection">
+          <div class="workLabel">What pays best — ranked from your own runs</div>
+          <div class="recoWrap" id="recoWrap"></div>
+        </div>
+
+        <div class="statSection" id="sessionHistWrap">
+          <div class="workLabel">Session history</div>
+          <div class="sessionList" id="sessionList"></div>
+        </div>
+      </div>
+
+      <div class="tabPane" id="tab-guide">
+        <div class="guideWrap">
+          <h2>How to use the companion</h2>
+          <div class="tag">Everything you need for a clean Abyss run, in order.</div>
+
+          <div class="gSection">
+            <h3>1 · One-time setup</h3>
+            <p>On first launch the wizard asks for your EVE <b>Gamelogs</b> folder — usually
+              <span class="mono">Documents\EVE\logs\Gamelogs</span>. This is how the companion sees NPCs:
+              it only ever <b>reads</b> the log files EVE writes to disk. No memory reading, no game hooks,
+              nothing that touches the client. You can change the folder any time under <b>Systems</b>.</p>
+            <p>Folder access and the floating overlay need a Chromium browser (Chrome / Edge / Opera GX)
+              opened directly on this file.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>2 · The run timer</h3>
+            <p>Pick your <b>Tier</b> and <b>Weather</b>, type your cargo's estimated value into <b>Before</b>,
+              and hit <b>▶ Start</b> as you take the gate. The ring counts down the 20-minute Abyss limit and
+              turns red under five minutes. Audio cues fire at 5:00, 1:00 and 0:00 (toggle in Systems).</p>
+            <p>Tap <b>R1 ✓ / R2 ✓ / R3 ✓</b> as you clear each room. Each split shows the time spent
+              <i>inside that room</i>, so you can see exactly which room costs you. Marking R3 stops the
+              clock and waits for your loot total.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>3 · NPC detection</h3>
+            <p>During a run the companion watches the log and lists every hostile it sees, colour-coded by
+              the trouble they bring:</p>
+            <ul class="legendList">
+              <li><i style="background:#CC3333"></i><b>Scram</b> — warp scrambler, you're held</li>
+              <li><i style="background:#C8A020"></i><b>Neut</b> — energy neutraliser, drains your cap</li>
+              <li><i style="background:#CC6600"></i><b>Web</b> — stasis web, slows you</li>
+              <li><i style="background:#884DCC"></i><b>Damp/Dis</b> — sensor damp / tracking disruption</li>
+              <li><i style="background:#22AA55"></i><b>Logi</b> — remote reps; kill these first</li>
+              <li><i style="background:#888888"></i><b>Paint</b> — target painter</li>
+              <li><i class="goldDot"></i><b>Gold border</b> — room boss · the gold chip is the latest spawn</li>
+            </ul>
+            <p>The same list shows in the workflow panel and the overlay. It resets each room. If your fit
+              has no drones, switch off <b>I use drones</b> in Systems to hide the drone-repair flag.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>4 · The overlay</h3>
+            <p><b>Overlay ▶</b> opens a floating always-on-top window (Picture-in-Picture) you can drop over
+              EVE in windowed-fullscreen. It carries the timer, detected NPCs and the run controls, and
+              resizes freely — everything scales to fit. Clicking it briefly takes focus from EVE; one click
+              back into the game returns it.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>5 · Loot, history &amp; stats</h3>
+            <p>After the run, enter your cargo's new value in <b>After</b> and hit <b>✓ Submit &amp; End</b>
+              (or <b>■ End</b> any time to log a partial run). The difference is your loot for that run.</p>
+            <p><b>History</b> lists every run; rows that hold an all-time record for their tier + weather are
+              highlighted. <b>Stats</b> breaks down ISK/hour and shows, from your own runs, which tier +
+              weather pays best — so you know what to grind.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>6 · Sessions</h3>
+            <p>Planning a block of runs? In <b>Stats</b>, name a session and set how many runs you intend to
+              do. The companion tracks just those runs, shows your progress, and gives you a clean summary
+              when you finish. Past sessions are saved so you can compare a Tuesday grind to a Wednesday one.</p>
+          </div>
+
+          <div class="gSection">
+            <h3>7 · Your own NPC data</h3>
+            <p>The bundled dataset is a small starter set. Import your full
+              <span class="mono">npc_dataset.json</span> under <b>Systems → Import dataset</b> — same schema,
+              snake_case <span class="mono">kill_priority</span> included. The NPC Library is fully searchable
+              and filterable by faction.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabPane" id="tab-about">
+        <div class="aboutWrap">
+          <h2>EVE Abyss Companion</h2>
+          <div class="tag">v2.1.0 · Web Edition — “Built by capsuleers, for capsuleers.”</div>
+          <p>A free companion for Abyssal Deadspace runs. It reads your EVE Online game log files from disk to
+            detect NPCs — no memory reading, no game hooks, no injection, no EVE API calls. Everything runs and
+            stays on your machine: settings, history and your NPC dataset never leave this file.</p>
+          <p><b style="color:var(--text)">Requirements:</b> a Chromium browser (Chrome or Edge) opened directly on this file.
+            Folder access and the always-on-top overlay use the File System Access and Document Picture-in-Picture
+            APIs, which Firefox does not currently ship.</p>
+          <div class="workLabel">Support the project</div>
+          <ul class="linkList">
+            <li><b>Ko-fi</b> <a href="https://ko-fi.com/jakkelsza" target="_blank" rel="noopener">ko-fi.com/jakkelsza</a></li>
+            <li><b>PayPal</b> <a href="https://paypal.me/JakkelsZA" target="_blank" rel="noopener">paypal.me/JakkelsZA</a></li>
+            <li><b>Bitcoin</b> <span style="font-family:var(--mono);font-size:11px">35U3rbr7XWAsi55KqUJDpRKoKB8PistGZv</span></li>
+            <li><b>GitHub</b> <a href="https://github.com/Jakelsza" target="_blank" rel="noopener">github.com/Jakelsza</a></li>
+          </ul>
+          <div class="workLabel">Dataset</div>
+          <p id="aboutDs"></p>
+          <p>The bundled dataset is a <b style="color:var(--text)">starter set</b> — names and behaviours kept to
+            what's well established, so treat threat ratings as a first opinion, not gospel. Import your full
+            <span style="font-family:var(--mono)">npc_dataset.json</span> from Systems → it uses the exact same
+            schema (snake_case <span style="font-family:var(--mono)">kill_priority</span> included).</p>
+          <p class="fineprint">EVE Online and the EVE logo are the registered trademarks of CCP hf. All rights are
+            reserved worldwide. This app is an unofficial fan-made tool and is not affiliated with, endorsed by, or
+            sponsored by CCP hf. CCP is not responsible for the content of this application, nor can it be liable
+            for any damage arising from its use.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ OVERLAY (docked fallback / PiP content) ============ -->
+<div id="overlayDock" hidden>
+  <div class="ovRoot" id="overlayRoot">
+    <div class="ovHead" data-ovdrag><span class="ovTitle"><b>EAC</b> · run overlay</span><span class="spacer"></span></div>
+    <div class="ovPanel">
+      <div class="ovPanelHead"><span>Detected NPCs</span><button class="btn mini" data-action="clearDetected" data-show="hasDetected">Clear</button></div>
+      <div class="chips" id="chips"></div>
+      <div class="legend">
+        <span><i style="background:#C8A020"></i>Neut</span>
+        <span><i style="background:#CC3333"></i>Scram</span>
+        <span><i style="background:#CC6600"></i>Web</span>
+        <span><i style="background:#884DCC"></i>Damp/Dis</span>
+        <span><i style="background:#22AA55"></i>Logi</span>
+        <span><i style="background:#888888"></i>Paint</span>
+        <span><i style="background:transparent;border:1px solid var(--gold)"></i>Boss</span>
+      </div>
+    </div>
+    <div class="ovTimerBlock">
+      <div class="timer" data-bind="timer">20:00</div>
+      <div class="ovStatus" data-bind="ovstatus">READY</div>
+      <div class="ovTW" data-bind="tierweather"></div>
+    </div>
+    <div class="ovGrid">
+      <div>
+        <div class="workLabel">Tier</div>
+        <div class="seg" data-seg="tier"></div>
+        <div class="workLabel">Weather</div>
+        <div class="seg" data-seg="weather"></div>
+        <div class="ovRoomLine" data-bind="roomdisp">Room: <b>1</b> / 3</div>
+        <div class="roomBtns" data-rooms></div>
+        <div class="droneRow" data-dronectl></div>
+        <div class="ovDroneWarn" data-bind="dronewarn"></div>
+        <div class="fieldRow"><label>Before</label><input data-model="before" inputmode="decimal" autocomplete="off" spellcheck="false"></div>
+        <div class="fieldRow"><label>After</label><input data-model="after" inputmode="decimal" autocomplete="off" spellcheck="false"><span class="deltaTag" data-bind="delta">—</span></div>
+      </div>
+      <div class="ovActions">
+        <button class="btn primary" data-action="start">▶ Start</button>
+        <button class="btn success" data-action="submit">✓ Submit</button>
+        <button class="btn danger" data-action="end">■ End</button>
+        <button class="btn" data-action="rerunSetup">⚙ Setup</button>
+        <button class="btn" data-action="hideOverlay">✕ Hide</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SETUP WIZARD ============ -->
+<div class="modalBack" id="setupModal">
+  <div class="wizard">
+    <div class="wizSteps"><i data-wizdot="1"></i><i data-wizdot="2"></i><i data-wizdot="3"></i></div>
+
+    <div data-wizstep="1">
+      <h2>Welcome! Let's set up your companion.</h2>
+      <p>EVE Abyss Companion keeps you alive inside the Abyss: it runs your 20-minute death timer,
+        spots hostile NPCs from your combat log, and tracks what each run actually paid.</p>
+      <ul>
+        <li>20-minute filament timer with room splits</li>
+        <li>Automatic NPC detection with EWAR-coded tags</li>
+        <li>Loot delta tracking, run history and ISK/hour stats</li>
+        <li>Always-on-top overlay for use over EVE</li>
+      </ul>
+      <div class="safeNote"><b>EULA safe.</b> Reads log files from disk only — no memory reading, no game hooks.</div>
+      <div class="wizNav"><span></span><span class="right"><button class="btn primary" data-action="wizNext">Next</button></span></div>
+    </div>
+
+    <div data-wizstep="2" hidden>
+      <h2>EVE Combat Log Folder</h2>
+      <p>Point the companion at your Gamelogs folder so it can watch for NPCs during a run.</p>
+      <div class="wizFolder">
+        <input type="text" id="wizFolderName" readonly placeholder="No folder selected">
+        <button class="btn" data-action="pickFolder">Browse…</button>
+      </div>
+      <p class="wizHint">Usually at <span style="font-family:var(--mono)">Documents\EVE\logs\Gamelogs</span>.
+        You can also set this later under Systems.</p>
+      <label class="togRow"><input type="checkbox" id="wizAuto" checked><span class="togBox"></span>Enable auto-detect NPCs from log</label>
+      <div class="wizNav">
+        <button class="btn" data-action="wizBack">Back</button>
+        <span class="right"><button class="btn primary" data-action="wizNext">Next</button></span>
+      </div>
+    </div>
+
+    <div data-wizstep="3" hidden>
+      <h2>You're ready!</h2>
+      <p>Pick a tier and weather, type your inventory's estimated price into <b style="color:var(--text)">Before</b>,
+        and hit <b style="color:var(--text)">▶ Start</b> as you take the gate. Fly safe, capsuleer.</p>
+      <div class="wizNav"><span></span><span class="right"><button class="btn primary" data-action="wizFinish">Let's Go!</button></span></div>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<input type="file" id="dsImport" accept=".json,application/json" hidden>
+
+<!-- ============ BUNDLED STARTER DATASET (schema-compatible with npc_dataset.json) ============ -->
+<script type="application/json" id="bundledDataset">
+[
+ {"name":"Damavik","family":"Triglavian","class":"Frigate","threat":"Low","kill_priority":"Mid","notes":"Baseline Triglavian frigate. Ramping entropic disintegrator — damage climbs the longer it holds the same lock.","quick_handle":"Low threat. Clear after EWAR frigates.","is_boss":false,"overlay_tags":[]},
+ {"name":"Striking Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Higher-damage Damavik variant.","quick_handle":"Clear early before the ramp stacks.","is_boss":false,"overlay_tags":[]},
+ {"name":"Tangling Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Tackle variant — webs and warp scrambles. The one that gets you killed sitting at the gate.","quick_handle":"Kill first. Always.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
+ {"name":"Blinding Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Sensor dampening variant — eats your lock range and targeting speed.","quick_handle":"Early kill if your locks start failing.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
+ {"name":"Starving Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Energy neutraliser variant — drains capacitor.","quick_handle":"First or second kill for any cap-hungry fit.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
+ {"name":"Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"Early","notes":"Triglavian destroyer — heavy ramping damage for its size.","quick_handle":"Do not let it ramp. Kill early.","is_boss":false,"overlay_tags":[]},
+ {"name":"Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Triglavian cruiser with a serious sustained ramp.","quick_handle":"Break its ramp — kill it or break its lock with range.","is_boss":false,"overlay_tags":[],"behavior":"Damage increases the longer it fires on one target."},
+ {"name":"Striking Vedmak","family":"Triglavian","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Vedmak.","quick_handle":"Priority target once tackle is down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Tangling Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Cruiser-class tackle — webs and scrams while the room shoots you.","quick_handle":"Kill with the tackle frigates, before the DPS.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
+ {"name":"Blinding Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Early","notes":"Sensor dampening cruiser.","quick_handle":"Early kill — damps stack badly with range.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
+ {"name":"Starving Vedmak","family":"Triglavian","class":"Cruiser","threat":"Very High","kill_priority":"First","notes":"Heavy energy neutraliser pressure.","quick_handle":"Active-tank killer — put it down fast.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
+ {"name":"Drekavac","family":"Triglavian","class":"Battlecruiser","threat":"Very High","kill_priority":"Mid","notes":"Heavy hitter. Respect the alpha and the ramp.","quick_handle":"Manage range; do not face-tank the ramp.","is_boss":false,"overlay_tags":[]},
+ {"name":"Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Mid","notes":"Triglavian battleship — the longer it lives, the harder it hits. Boss rooms often anchor on a Leshak-class hull.","quick_handle":"Commit and break it, or stay out of its envelope.","is_boss":false,"overlay_tags":[],"behavior":"Ramping disintegrator; extreme damage if ignored."},
+ {"name":"Starving Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"First","notes":"Battleship-class neut pressure that can flatline a cap chain.","quick_handle":"Kill before your booster runs dry.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
+ {"name":"Blinding Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Early","notes":"Damping battleship — can lock you out of the fight entirely.","quick_handle":"Early kill or fight inside its damp floor.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
+ {"name":"Rodiva","family":"Triglavian","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Triglavian logistics cruiser — remote repairs keep the room alive.","quick_handle":"Kill first or your DPS does nothing.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
+ {"name":"Renewing Rodiva","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Stronger remote-repair Rodiva variant.","quick_handle":"First on the kill order, every time.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
+ {"name":"Lucid Firewatcher","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter line cruiser — steady omni damage.","quick_handle":"Standard clear once support is down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Drifter logistics — chains remote reps across the spawn.","quick_handle":"Kill first; watch the rep chain swap.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
+ {"name":"Arch Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser (Elite)","threat":"High","kill_priority":"First","notes":"Elite Drifter logistics. Out-reps low DPS entirely.","quick_handle":"All damage here first.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
+ {"name":"Karybdis Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss. Spawns 80km+ already kiting — send drones immediately or you will never close the gap before the timer eats you.","quick_handle":"Drones out the moment it lands. Do not chase it with the clock running.","is_boss":true,"overlay_tags":[],"behavior":"Kites at extreme range from spawn."},
+ {"name":"Scylla Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss — heavy hits; manage range and transversal.","quick_handle":"Respect the alpha; keep speed up.","is_boss":true,"overlay_tags":[]},
+ {"name":"Circadian Seeker","family":"Drifters/Seekers","class":"Cruiser","threat":"Low","kill_priority":"Last","notes":"Scout-class wanderer. Minor threat on its own.","quick_handle":"Clean up after real threats are down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Devoted Hunter","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate — area damage shreds drones and frigates at close range. A known killer in frigate-class Abyssals.","quick_handle":"Never let drones orbit it. Kill from range, first.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
+ {"name":"Devoted Knight","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate, same family of pain as the Hunter.","quick_handle":"Range is life. Drones in bay until it is dead.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
+ {"name":"Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser","threat":"Very High","kill_priority":"Early","notes":"Destroys drones — pull them immediately when this lands on grid.","quick_handle":"Drones in bay first, then fight it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
+ {"name":"Elite Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite variant. Destroys drones — pull them immediately.","quick_handle":"Drones in bay. Do not test it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
+ {"name":"Lucifer Dramiel","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Fast Angel frigate — hard to track when it is under your guns.","quick_handle":"Web it or out-fly it; do not chase.","is_boss":false,"overlay_tags":[]}
+]
+</script>
+
+<script>
+'use strict';
+/* ==================================================================
+   CORE — pure logic (unit-testable, no DOM)
+   ================================================================== */
+/*__CORE_START__*/
+const RUN_SECONDS = 1200;
+const TIERS = ['T0','T1','T2','T3','T4','T5','T6'];
+const WEATHERS = ['Electrical','Exotic','Firestorm','Gamma','Dark'];
+/* Base hue per weather (≈ tier T3). Tier shifts lightness/saturation. */
+const WEATHER_BASE = {
+  Electrical: '#FFD23F',  // yellow — electrical arcs
+  Exotic:     '#2EE6A6',  // teal-green
+  Firestorm:  '#FF6A3D',  // orange-red — fire
+  Gamma:      '#7CE04A',  // radiation green
+  Dark:       '#9B6BFF'   // void violet
+};
+const WEATHER_ACCENTS = WEATHER_BASE; // representative hue (used where tier is irrelevant)
+
+function hexToHsl(hex){
+  const n = parseInt(hex.slice(1), 16);
+  const r = ((n>>16)&255)/255, g = ((n>>8)&255)/255, b = (n&255)/255;
+  const mx = Math.max(r,g,b), mn = Math.min(r,g,b);
+  let h = 0, s = 0; const l = (mx+mn)/2;
+  if (mx !== mn){
+    const d = mx-mn;
+    s = l > .5 ? d/(2-mx-mn) : d/(mx+mn);
+    if (mx === r) h = (g-b)/d + (g<b?6:0);
+    else if (mx === g) h = (b-r)/d + 2;
+    else h = (r-g)/d + 4;
+    h /= 6;
+  }
+  return [h*360, s, l];
+}
+function hslToHex(h, s, l){
+  h = (((h%360)+360)%360)/360;
+  s = Math.min(1, Math.max(0, s)); l = Math.min(1, Math.max(0, l));
+  let r, g, b;
+  if (s === 0){ r = g = b = l; }
+  else {
+    const hue2 = (p,q,t) => { if (t<0) t+=1; if (t>1) t-=1;
+      if (t<1/6) return p+(q-p)*6*t; if (t<1/2) return q;
+      if (t<2/3) return p+(q-p)*(2/3-t)*6; return p; };
+    const q = l < .5 ? l*(1+s) : l+s-l*s, p = 2*l-q;
+    r = hue2(p,q,h+1/3); g = hue2(p,q,h); b = hue2(p,q,h-1/3);
+  }
+  const to = x => ('0'+Math.round(x*255).toString(16)).slice(-2);
+  return '#'+to(r)+to(g)+to(b);
+}
+/* tier 0..6 → lighter/softer at T0, deeper/richer at T6 (colour = weather, intensity = tier) */
+function tierWeatherAccent(tier, weather){
+  const base = WEATHER_BASE[weather] || WEATHER_BASE.Electrical;
+  const f = Math.max(0, TIERS.indexOf(tier)) / 6;        // 0..1
+  let [h, s, l] = hexToHsl(base);
+  l = l + 0.16 * (1 - f) - 0.14 * f;                     // brighten low tiers, deepen high tiers
+  l = Math.min(0.86, Math.max(0.44, l));                 // keep readable on the dark hull
+  s = Math.min(1, s * (0.82 + 0.30 * f));                // a touch richer as tier climbs
+  return hslToHex(h, s, l);
+}
+const TAG_COLORS = {
+  'Neut': '#C8A020', 'Scram': '#CC3333', 'Web': '#CC6600',
+  'Damp/Dis': '#884DCC', 'Logi': '#22AA55', 'Paint': '#888888'
+};
+const TAG_ORDER = ['Scram','Neut','Web','Damp/Dis','Logi','Paint'];
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function fmtMMSS(sec){ sec = Math.max(0, Math.round(sec)); return pad2(Math.floor(sec/60)) + ':' + pad2(sec % 60); }
+
+/* Loot inputs: digits and a single decimal point only */
+function sanitizeIsk(raw){
+  let out = '', dot = false;
+  for (const ch of String(raw ?? '')){
+    if (ch >= '0' && ch <= '9') out += ch;
+    else if (ch === '.' && !dot){ out += ch; dot = true; }
+  }
+  return out;
+}
+function parseIsk(raw){
+  const s = sanitizeIsk(raw);
+  if (!s || s === '.') return null;
+  const v = parseFloat(s);
+  return Number.isFinite(v) ? v : null;
+}
+function lootDelta(before, after){
+  const b = parseIsk(before), a = parseIsk(after);
+  if (b === null || a === null) return null;
+  return a - b;
+}
+function fmtDelta(d){
+  if (d === null || d === undefined) return '—';
+  return (d >= 0 ? '+ ' : '- ') + Math.abs(d).toFixed(2) + ' M';
+}
+
+/* Accept Leon's npc_dataset.json schema exactly (snake_case kill_priority etc.) */
+function normalizeEntry(raw){
+  const e = raw || {};
+  const name = String(e.name || '').trim();
+  return {
+    name,
+    family:  e.family || 'Unknown',
+    cls:     e['class'] || '',
+    threat:  e.threat || '',
+    kill:    e.kill_priority || '',
+    notes:   e.notes || '',
+    quick:   e.quick_handle || '',
+    boss:    !!e.is_boss,
+    tags:    Array.isArray(e.overlay_tags) ? e.overlay_tags.filter(t => typeof t === 'string') : [],
+    behavior: e.behavior || '',
+    weakTo:   e.weak_to || '',
+    ewar:     e.ewar || '',
+    raw: e
+  };
+}
+function primaryTag(tags){
+  for (const t of TAG_ORDER) if (tags && tags.includes(t)) return t;
+  return null;
+}
+
+/* Combat log parsing ------------------------------------------------ */
+function stripMarkup(s){ return s.replace(/<[^>]*>/g, ' '); }
+function normText(s){ return s.toLowerCase().replace(/\s+/g, ' ').trim(); }
+
+function makeResolver(entries){
+  const keyed = entries
+    .map(e => ({ entry: e, key: normText(e.name) }))
+    .filter(x => x.key.length > 2)
+    .sort((a, b) => b.key.length - a.key.length); // longest first: "Striking Damavik" before "Damavik"
+  return {
+    /* every dataset NPC mentioned in this line, longest-name wins on overlap */
+    matchLine(line){
+      const t = normText(stripMarkup(line));
+      if (!t) return [];
+      const out = [], usedKeys = [];
+      for (const x of keyed){
+        if (t.includes(x.key)){
+          if (usedKeys.some(k => k.includes(x.key))) continue; // substring of an already-matched longer name
+          usedKeys.push(x.key);
+          out.push(x.entry);
+        }
+      }
+      return out;
+    }
+  };
+}
+
+/* Scan a chunk of new log text; `seen` suppresses duplicates per room */
+function extractDetections(chunk, resolver, seen){
+  const hits = [];
+  for (const line of chunk.split(/\r?\n/)){
+    if (!line) continue;
+    if (line.indexOf('(combat)') === -1 && line.indexOf('(notify)') === -1) continue;
+    for (const e of resolver.matchLine(line)){
+      if (seen.has(e.name)) continue;
+      seen.add(e.name);
+      hits.push(e);
+    }
+  }
+  return hits;
+}
+
+/* Splits + stats ----------------------------------------------------- */
+/* Stored splits are cumulative elapsed at each room mark; show the time
+   spent INSIDE each room (room N duration = mark N − mark N-1). */
+function perRoomSplits(sp){
+  const out = {};
+  if (!sp) return out;
+  let prev = 0;
+  for (const k of ['r1','r2','r3']){
+    if (sp[k] != null){ out[k] = Math.max(0, sp[k] - prev); prev = sp[k]; }
+  }
+  return out;
+}
+function fmtSplits(sp){
+  const pr = perRoomSplits(sp);
+  const parts = [];
+  for (const k of ['r1','r2','r3']) if (pr[k] != null) parts.push(k.toUpperCase() + ' ' + fmtMMSS(pr[k]));
+  return parts.join('   ');
+}
+function computeStats(history){
+  let totalSec = 0, lootSum = 0, lootRuns = 0, best = null;
+  const tier = {}, weather = {}, tw = {};
+  for (const r of history){
+    totalSec += r.elapsed || 0;
+    if (typeof r.delta === 'number'){ lootSum += r.delta; lootRuns++; }
+    tier[r.tier] = (tier[r.tier] || 0) + 1;
+    weather[r.weather] = (weather[r.weather] || 0) + 1;
+    const k = r.tier + '|' + r.weather;
+    tw[k] = (tw[k] || 0) + 1;
+    if (r.rooms === 3 && (!best || r.remain > best.remain)) best = r;
+  }
+  const n = history.length, hours = totalSec / 3600;
+  return {
+    n, totalSec,
+    avgSec: n ? totalSec / n : 0,
+    best, lootSum,
+    avgLoot: lootRuns ? lootSum / lootRuns : 0,
+    iskHr: hours > 0 ? lootSum / hours : 0,
+    tier, weather, tw
+  };
+}
+
+/* Single-run efficiency = loot per hour for that run (needs loot + time). */
+function runEfficiency(r){
+  if (!r || typeof r.delta !== 'number' || !(r.elapsed > 0)) return null;
+  return r.delta / (r.elapsed / 3600);
+}
+
+/* All-time bests per tier+weather: fastest full clear, biggest loot, best
+   efficiency (the run worth repeating). Each holds the owning run's ts. */
+function computeRecords(history){
+  const byTW = {};
+  for (const r of history){
+    const key = r.tier + '|' + r.weather;
+    const b = byTW[key] || (byTW[key] = { time: null, loot: null, combo: null });
+    if (r.rooms === 3 && (!b.time || r.elapsed < b.time.elapsed)) b.time = { ts: r.ts, elapsed: r.elapsed };
+    if (typeof r.delta === 'number' && (!b.loot || r.delta > b.loot.delta)) b.loot = { ts: r.ts, delta: r.delta };
+    const eff = runEfficiency(r);
+    if (eff != null && r.rooms === 3 && (!b.combo || eff > b.combo.eff)) b.combo = { ts: r.ts, eff };
+  }
+  return byTW;
+}
+/* Map run ts → Set of record categories it currently holds. */
+function recordFlags(records){
+  const m = {};
+  for (const key in records){
+    const b = records[key];
+    for (const cat of ['time','loot','combo']){
+      if (b[cat]){ (m[b[cat].ts] || (m[b[cat].ts] = new Set())).add(cat); }
+    }
+  }
+  return m;
+}
+
+/* Per-tier weather ranking from the player's own runs (avg loot/time/eff). */
+function computeRecommendations(history){
+  const acc = {};
+  for (const r of history){
+    const t = acc[r.tier] || (acc[r.tier] = {});
+    const w = t[r.weather] || (t[r.weather] = { runs: 0, lootSum: 0, lootRuns: 0, secSum: 0, effSum: 0, effRuns: 0 });
+    w.runs++; w.secSum += r.elapsed || 0;
+    if (typeof r.delta === 'number'){ w.lootSum += r.delta; w.lootRuns++; }
+    const eff = runEfficiency(r);
+    if (eff != null){ w.effSum += eff; w.effRuns++; }
+  }
+  const out = {};
+  for (const tier in acc){
+    out[tier] = Object.entries(acc[tier]).map(([weather, w]) => ({
+      weather, runs: w.runs,
+      avgLoot: w.lootRuns ? w.lootSum / w.lootRuns : null,
+      avgSec:  w.runs ? w.secSum / w.runs : null,
+      avgEff:  w.effRuns ? w.effSum / w.effRuns : null
+    }));
+  }
+  return out;
+}
+/*__CORE_END__*/
+
+/* ==================================================================
+   FOUNDATION — storage, config, dataset, session state
+   ================================================================== */
+const $  = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+function el(tag, attrs, ...kids){
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)){
+    if (k === 'class') n.className = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('data-')) n.setAttribute(k, v);
+    else if (k === 'style') n.style.cssText = v;
+    else n.setAttribute(k, v);
+  }
+  for (const k of kids) if (k != null) n.append(k);
+  return n;
+}
+
+/* storage with in-memory fallback (sandboxed previews block localStorage) */
+const store = {
+  mem: {},
+  ok: (() => { try { localStorage.setItem('__eac','1'); localStorage.removeItem('__eac'); return true; } catch(e){ return false; } })(),
+  get(k, d){
+    if (this.ok){ try { const v = localStorage.getItem(k); if (v != null) return JSON.parse(v); } catch(e){} }
+    return (k in this.mem) ? this.mem[k] : d;
+  },
+  set(k, v){
+    this.mem[k] = v;
+    if (this.ok){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  },
+  del(k){ delete this.mem[k]; if (this.ok){ try { localStorage.removeItem(k); } catch(e){} } }
+};
+
+/* IndexedDB: persists the Gamelogs directory handle across sessions */
+const idb = {
+  open(){
+    return new Promise((res, rej) => {
+      const rq = indexedDB.open('eac', 1);
+      rq.onupgradeneeded = () => rq.result.createObjectStore('kv');
+      rq.onsuccess = () => res(rq.result);
+      rq.onerror = () => rej(rq.error);
+    });
+  },
+  async get(k){
+    try {
+      const db = await this.open();
+      return await new Promise((res, rej) => {
+        const rq = db.transaction('kv').objectStore('kv').get(k);
+        rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+      });
+    } catch(e){ return undefined; }
+  },
+  async set(k, v){
+    try {
+      const db = await this.open();
+      await new Promise((res, rej) => {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(v, k);
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+      });
+    } catch(e){}
+  },
+  async del(k){
+    try {
+      const db = await this.open();
+      await new Promise((res, rej) => {
+        const tx = db.transaction('kv', 'readwrite');
+        tx.objectStore('kv').delete(k);
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+      });
+    } catch(e){}
+  }
+};
+
+/* config */
+const DEFAULT_CONFIG = {
+  setupComplete: false,
+  autoDetect: true,
+  alwaysOverlay: false,
+  audio: true,
+  useDrones: true,
+  tier: 'T3',
+  weather: 'Electrical',
+  configVersion: 3
+};
+let config = Object.assign({}, DEFAULT_CONFIG, store.get('eac.config', {}) || {});
+function saveConfig(){ store.set('eac.config', config); }
+
+/* dataset */
+let dataset = [];        // normalized entries
+let datasetMeta = { source: 'bundled', name: 'bundled starter set', count: 0 };
+let resolver = makeResolver([]);
+let families = [];
+
+function loadDataset(){
+  const saved = store.get('eac.dataset', null);
+  let rawArr = null;
+  if (saved && Array.isArray(saved.raw) && saved.raw.length){
+    rawArr = saved.raw;
+    datasetMeta = Object.assign({ source: 'imported', name: 'imported' }, saved.meta || {});
+  } else {
+    try { rawArr = JSON.parse($('#bundledDataset').textContent); } catch(e){ rawArr = []; }
+    datasetMeta = { source: 'bundled', name: 'bundled starter set' };
+  }
+  dataset = (rawArr || []).map(normalizeEntry).filter(e => e.name);
+  datasetMeta.count = dataset.length;
+  resolver = makeResolver(dataset);
+  families = Array.from(new Set(dataset.map(e => e.family))).sort();
+}
+
+/* run history */
+let history = store.get('eac.history', []) || [];
+function saveHistory(){ store.set('eac.history', history); }
+
+/* sessions — a named block of N planned runs. Active session tracks run
+   timestamps; finished sessions snapshot their runs for later review. */
+let session = store.get('eac.session', null);           // { name, target, startedTs, runIds:[] } | null
+let sessions = store.get('eac.sessions', []) || [];     // [{ name, target, startedTs, endedTs, runs:[rec...] }]
+function saveSession(){ store.set('eac.session', session); }
+function saveSessions(){ store.set('eac.sessions', sessions); }
+function sessionRuns(){
+  if (!session) return [];
+  const ids = new Set(session.runIds);
+  return history.filter(r => ids.has(r.ts));
+}
+
+/* live session */
+const run = {
+  state: 'READY',      // READY | RUNNING | PENDING | (FINISHED is transient)
+  anchor: 0,           // performance.now() at Start
+  frozen: 0,           // elapsed seconds, frozen on PENDING
+  room: 1,             // current room (1-3)
+  done: 0,             // rooms actually completed via R✓ — used when saving
+  splits: {},
+  drone: false,        // drone took armor, not yet repaired
+  droneWarn: false,    // entered a new room while flagged
+  before: '',
+  after: ''
+};
+const detected = [];           // [{ e, ts }]
+const seen = new Set();        // duplicate suppression per room
+let libDetectedOnly = false;
+let selectedNpc = null;
+
+function elapsedSec(){
+  return run.state === 'RUNNING' ? (performance.now() - run.anchor) / 1000 : run.frozen;
+}
+function remainSec(){ return Math.max(0, RUN_SECONDS - elapsedSec()); }
+
+/* audio cues */
+let audioCtx = null;
+function beep(freq, dur, when){
+  if (!config.audio) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const t = audioCtx.currentTime + (when || 0);
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  } catch(e){}
+}
+function cueFiveMin(){ beep(880, .14); beep(880, .14, .22); }
+function cueOneMin(){ beep(988, .12); beep(988, .12, .18); beep(988, .12, .36); }
+function cueZero(){ beep(330, .5); }
+
+/* toasts */
+function toast(msg, kind){
+  const t = el('div', { class: 'toast' + (kind ? ' ' + kind : ''), text: msg });
+  $('#toasts').append(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; }, 3400);
+  setTimeout(() => t.remove(), 3800);
+}
+
+/* weather + tier reactive theme */
+function applyTheme(){
+  const c = tierWeatherAccent(config.tier, config.weather);
+  document.documentElement.style.setProperty('--accent', c);
+  if (pipWin){ try { pipWin.document.documentElement.style.setProperty('--accent', c); } catch(e){} }
+}
+</script>
+
+<script>
+'use strict';
+/* ==================================================================
+   APP — wiring, rendering, log monitor, overlay
+   ================================================================== */
+let pipWin = null, floatMode = false, overlayVisible = false;
+let prevRemain = RUN_SECONDS, finishedUntil = 0;
+const RING_C = 2 * Math.PI * 88;
+
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function allDocs(){
+  const a = [document];
+  if (pipWin && !pipWin.closed){ try { if (pipWin.document) a.push(pipWin.document); } catch(e){} }
+  return a;
+}
+function qa(sel){ return allDocs().flatMap(d => Array.from(d.querySelectorAll(sel))); }
+function hexA(hex, a){
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+}
+
+/* ---------------- run actions ---------------- */
+function startRun(){
+  if (run.state !== 'READY') return;
+  run.state = 'RUNNING';
+  run.anchor = performance.now();
+  run.frozen = 0; run.room = 1; run.done = 0; run.splits = {};
+  run.drone = false; run.droneWarn = false; run.after = '';
+  detected.length = 0; seen.clear();
+  prevRemain = RUN_SECONDS;
+  try { if (config.audio){ audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume && audioCtx.resume(); } } catch(e){}
+  monitor.start();
+  if (config.alwaysOverlay && !overlayVisible) openOverlay();
+  fullRender();
+}
+
+function markRoom(n){
+  if (run.state !== 'RUNNING' || n !== run.room) return;
+  run.splits['r' + n] = elapsedSec();
+  qa(`.roomBtn[data-room="${n}"]`).forEach(b => { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); });
+  if (n < 3){
+    run.done = n;
+    run.room = n + 1;
+    if (run.drone) run.droneWarn = true;     // entered next room with damaged drones
+    detected.length = 0; seen.clear();       // fresh detection slate per room
+  } else {
+    run.done = 3;
+    run.frozen = elapsedSec();
+    run.state = 'PENDING';                   // timer stops; waiting on After + Submit
+    monitor.stop();
+  }
+  fullRender();
+}
+
+function droneFlag(){ if (run.state === 'RUNNING' && !run.drone){ run.drone = true; fullRender(); } }
+function droneRepaired(){ run.drone = false; run.droneWarn = false; fullRender(); }
+
+function resetSession(silent){
+  run.state = 'READY'; run.anchor = 0; run.frozen = 0;
+  run.room = 1; run.done = 0; run.splits = {};
+  run.drone = false; run.droneWarn = false;
+  run.before = ''; run.after = '';
+  detected.length = 0; seen.clear();
+  monitor.stop();
+  fullRender();
+  if (!silent) toast('Session reset');
+}
+
+function finalizeRun(){
+  const elapsed = run.state === 'PENDING' ? run.frozen : elapsedSec();
+  const remain = Math.max(0, RUN_SECONDS - elapsed);
+  const delta = lootDelta(run.before, run.after);
+  const rec = {
+    ts: Date.now(),
+    tier: config.tier, weather: config.weather,
+    rooms: run.done,
+    elapsed: Math.round(elapsed), remain: Math.round(remain),
+    splits: { r1: run.splits.r1, r2: run.splits.r2, r3: run.splits.r3 },
+    before: parseIsk(run.before), after: parseIsk(run.after),
+    delta
+  };
+  history.unshift(rec); saveHistory();
+  let sessionDone = false;
+  if (session){
+    session.runIds.push(rec.ts); saveSession();
+    if (session.runIds.length >= session.target) sessionDone = true;
+  }
+  setLastRun(rec);
+  finishedUntil = Date.now() + 2200;
+  resetSession(true);
+  renderHistory(); renderStats();
+  toast(`Run logged — ${rec.tier} ${rec.weather} · ${rec.rooms}/3 · ${fmtMMSS(rec.elapsed)} · ${fmtDelta(rec.delta)}`, 'good');
+  if (sessionDone) finishSession();
+}
+function endRun(){ if (run.state === 'RUNNING' || run.state === 'PENDING') finalizeRun(); }
+function submitRun(){ if (run.state === 'PENDING') finalizeRun(); }
+
+function setLastRun(rec){
+  $('#lastRun').textContent = rec
+    ? `Last run — ${rec.tier} ${rec.weather} · ${rec.rooms}/3 · ${fmtMMSS(rec.elapsed)} elapsed · ${fmtDelta(rec.delta)}`
+    : 'No runs logged yet.';
+}
+
+/* ---------------- detections ---------------- */
+function addDetections(list){
+  for (const e of list) detected.push({ e, ts: Date.now() });
+  fullRender(); renderLibrary();
+}
+function clearDetected(){ detected.length = 0; seen.clear(); fullRender(); renderLibrary(); }
+
+function buildChipsInto(box){
+  box.replaceChildren();
+  if (!detected.length){
+    box.append(el('div', { class: 'empty', text: 'No NPCs detected yet.' }));
+    return;
+  }
+  detected.forEach((d, i) => {
+    const e = d.e, isLast = i === detected.length - 1;
+    const p = primaryTag(e.tags);
+    const chip = el('span', { class: 'chip' + (e.boss ? ' boss' : '') + (isLast ? ' last' : '') });
+    if (!isLast){
+      chip.style.borderColor = p ? TAG_COLORS[p] : 'var(--edge-2)';
+      chip.style.background = p ? hexA(TAG_COLORS[p], .17) : 'var(--hull)';
+      chip.style.color = 'var(--text)';
+    }
+    chip.append(el('span', { text: e.name }));
+    if (e.tags.length){
+      const tg = el('span', { class: 'tags' });
+      e.tags.forEach(t => {
+        const s = el('span', { class: 't', text: t });
+        s.style.background = TAG_COLORS[t] || '#3D5267';
+        tg.append(s);
+      });
+      chip.append(tg);
+    }
+    if (e.kill) chip.append(el('span', { class: 'kp', text: e.kill.toUpperCase() }));
+    box.append(chip);
+  });
+}
+function renderChips(){ qa('.chips').forEach(buildChipsInto); }
+
+/* ---------------- log monitor ---------------- */
+const FS_OK = typeof window.showDirectoryPicker === 'function';
+const monitor = {
+  dir: null, fileHandle: null, fileName: '', size: 0, enc: null,
+  active: false, pollId: 0, scanId: 0, lastErr: '', permission: 'none',
+
+  async adopt(handle){
+    this.dir = handle; this.permission = 'granted'; this.lastErr = '';
+    idb.set('logDir', handle);
+    renderMon();
+  },
+  async restore(){
+    const h = await idb.get('logDir');
+    if (!h) { renderMon(); return; }
+    this.dir = h;
+    try { this.permission = await h.queryPermission({ mode: 'read' }); }
+    catch(e){ this.permission = 'prompt'; }
+    renderMon();
+  },
+  async resume(){
+    if (!this.dir) return;
+    try {
+      this.permission = await this.dir.requestPermission({ mode: 'read' });
+      if (this.permission === 'granted'){
+        toast('Folder access restored', 'good');
+        if (run.state === 'RUNNING' && config.autoDetect) this.start();
+      }
+    } catch(e){ this.lastErr = 'Permission request failed'; }
+    renderMon();
+  },
+  async start(){
+    if (this.active || !config.autoDetect) { renderMon(); return; }
+    if (!this.dir || this.permission !== 'granted'){ renderMon(); return; }
+    this.active = true;
+    this.fileHandle = null; this.fileName = ''; this.size = 0; this.enc = null;
+    await this.scan(true);                       // tail from end — old log text is stale
+    this.pollId = setInterval(() => this.poll(), 350);
+    this.scanId = setInterval(() => this.scan(false), 4000);
+    renderMon();
+  },
+  stop(){
+    if (!this.active) return;
+    this.active = false;
+    clearInterval(this.pollId); clearInterval(this.scanId);
+    renderMon();
+  },
+  async scan(fromEnd){
+    if (!this.dir) return;
+    try {
+      let bestH = null, bestF = null;
+      for await (const h of this.dir.values()){
+        if (h.kind !== 'file' || !h.name.toLowerCase().endsWith('.txt')) continue;
+        const f = await h.getFile();
+        if (!bestF || f.lastModified > bestF.lastModified){ bestF = f; bestH = h; }
+      }
+      if (bestH && bestF.name !== this.fileName){
+        this.fileHandle = bestH; this.fileName = bestF.name;
+        this.enc = null;
+        this.size = fromEnd ? bestF.size : 0;    // a brand-new log mid-run is read from the top
+      }
+      this.lastErr = '';
+    } catch(e){
+      this.lastErr = 'Folder access lost — click Resume folder access.';
+      this.permission = 'prompt';
+      this.stop();
+    }
+    renderMon();
+  },
+  async poll(){
+    if (!this.fileHandle || run.state !== 'RUNNING') return;
+    try {
+      const f = await this.fileHandle.getFile();
+      if (f.size < this.size) this.size = 0;     // log rotated/truncated
+      if (f.size > this.size){
+        if (this.enc == null){
+          const head = new Uint8Array(await f.slice(0, 2).arrayBuffer());
+          this.enc = (head[0] === 0xFF && head[1] === 0xFE) ? 'utf-16le'
+                   : (head[0] === 0xFE && head[1] === 0xFF) ? 'utf-16be' : 'utf-8';
+        }
+        if (this.enc.startsWith('utf-16') && this.size % 2 === 1) this.size--;
+        const buf = await f.slice(this.size, f.size).arrayBuffer();
+        this.size = f.size;
+        const text = new TextDecoder(this.enc).decode(buf);
+        const hits = extractDetections(text, resolver, seen);
+        if (hits.length) addDetections(hits);
+      }
+    } catch(e){ /* transient read errors between writes are normal */ }
+  }
+};
+
+function renderMon(){
+  const m = $('#monStatus');
+  if (!m) return;
+  const lines = [];
+  if (!FS_OK){
+    lines.push('<span class="err">Folder access is unavailable in this context.</span>');
+    lines.push('Open this file directly in Chrome or Edge to enable log detection.');
+  } else {
+    lines.push('Folder: <b>' + (monitor.dir ? esc(monitor.dir.name) : 'not selected') + '</b>');
+    if (monitor.permission === 'prompt') lines.push('<span class="err">Access needs to be re-confirmed.</span>');
+    lines.push('Watching: <b>' + (monitor.fileName ? esc(monitor.fileName) : '—') + '</b>');
+    const state = !config.autoDetect ? 'off'
+      : monitor.active ? '<span class="ok">ACTIVE</span>'
+      : (monitor.dir && monitor.permission === 'granted') ? 'armed — starts with the run'
+      : 'waiting for folder';
+    lines.push('Monitor: ' + state + ' · Detected this room: <b>' + detected.length + '</b>');
+    if (monitor.lastErr) lines.push('<span class="err">' + esc(monitor.lastErr) + '</span>');
+  }
+  m.innerHTML = lines.join('<br>');
+  const r = $('#btnResume');
+  if (r) r.hidden = !(FS_OK && monitor.dir && monitor.permission === 'prompt');
+  const ds = datasetMeta.count + ' NPCs · ' + (datasetMeta.source === 'bundled' ? 'bundled starter set' : esc(datasetMeta.name));
+  const i = $('#dsInfo'); if (i) i.innerHTML = ds;
+  const a = $('#aboutDs'); if (a) a.innerHTML = 'Currently loaded: ' + ds + '.';
+}
+
+async function pickFolder(){
+  if (!FS_OK){ toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn'); return; }
+  try {
+    const h = await window.showDirectoryPicker({ id: 'eveGamelogs', mode: 'read' });
+    await monitor.adopt(h);
+    const w = $('#wizFolderName'); if (w) w.value = h.name;
+    toast('Gamelogs folder set: ' + h.name, 'good');
+    if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+  } catch(e){
+    if (e && e.name === 'AbortError') return;
+    toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn');
+  }
+}
+
+/* ---------------- overlay (Document Picture-in-Picture) ---------------- */
+function copyStylesTo(w){
+  for (const ss of document.styleSheets){
+    try {
+      const css = Array.from(ss.cssRules).map(r => r.cssText).join('\n');
+      const st = w.document.createElement('style');
+      st.textContent = css;
+      w.document.head.append(st);
+    } catch(e){}
+  }
+}
+async function openOverlay(){
+  if (overlayVisible) return;
+  const root = $('#overlayRoot');
+  if ('documentPictureInPicture' in window){
+    try {
+      pipWin = await documentPictureInPicture.requestWindow({ width: 392, height: 660 });
+      copyStylesTo(pipWin);
+      pipWin.document.title = 'EAC Overlay';
+      pipWin.document.body.className = 'pipBody';
+      pipWin.document.documentElement.style.setProperty('--accent', tierWeatherAccent(config.tier, config.weather));
+      pipWin.document.body.append(root);
+      wireRoot(pipWin.document);
+      pipWin.addEventListener('pagehide', onPipClosed);
+      overlayVisible = true;
+      fullRender();
+      return;
+    } catch(e){ pipWin = null; }
+  }
+  // Fallback: docked in-page overlay (Firefox / sandboxed preview)
+  $('#overlayDock').hidden = false;
+  floatMode = true; overlayVisible = true;
+  fullRender();
+  toast('True always-on-top needs Chrome/Edge opened directly on this file — showing a docked overlay instead.', 'warn');
+}
+function onPipClosed(){
+  if (!pipWin) return;
+  const w = pipWin; pipWin = null; overlayVisible = false;
+  try {
+    const root = w.document.getElementById('overlayRoot');
+    if (root) $('#overlayDock').append(root);
+  } catch(e){}
+  $('#overlayDock').hidden = true;
+  fullRender();
+}
+function closeOverlay(){
+  if (pipWin){ try { pipWin.close(); } catch(e){ onPipClosed(); } }
+  else if (floatMode){
+    floatMode = false; overlayVisible = false;
+    $('#overlayDock').hidden = true;
+    fullRender();
+  }
+}
+function toggleOverlay(){ overlayVisible ? closeOverlay() : openOverlay(); }
+
+/* docked-overlay drag (fallback mode only — PiP windows are OS-dragged) */
+(function(){
+  let sx = 0, sy = 0, ox = 0, oy = 0, dragging = false;
+  document.addEventListener('pointerdown', ev => {
+    if (!floatMode) return;
+    const h = ev.target.closest('[data-ovdrag]');
+    if (!h) return;
+    dragging = true;
+    const dock = $('#overlayDock'), r = dock.getBoundingClientRect();
+    sx = ev.clientX; sy = ev.clientY; ox = r.left; oy = r.top;
+    dock.style.right = 'auto';
+    ev.preventDefault();
+  });
+  document.addEventListener('pointermove', ev => {
+    if (!dragging) return;
+    const dock = $('#overlayDock');
+    dock.style.left = (ox + ev.clientX - sx) + 'px';
+    dock.style.top = Math.max(4, oy + ev.clientY - sy) + 'px';
+  });
+  document.addEventListener('pointerup', () => dragging = false);
+})();
+</script>
+
+<script>
+'use strict';
+/* ==================================================================
+   RENDERING + WIRING + INIT
+   ================================================================== */
+
+/* ---------------- builders ---------------- */
+function buildControls(){
+  qa('[data-seg]').forEach(wrap => {
+    const key = wrap.getAttribute('data-seg');
+    const opts = key === 'tier' ? TIERS : WEATHERS;
+    wrap.replaceChildren(...opts.map(v => el('button', { class: 'segBtn', 'data-val': v, text: v })));
+  });
+  qa('[data-rooms]').forEach(wrap => {
+    wrap.replaceChildren(...[1, 2, 3].map(n => el('button', { class: 'roomBtn', 'data-room': n, text: `R${n} ✓` })));
+  });
+  qa('[data-dronectl]').forEach(wrap => {
+    wrap.replaceChildren(
+      el('button', { class: 'btn btnDrone', 'data-action': 'droneFlag', text: 'Drone took armor' }),
+      el('button', { class: 'btn mini', 'data-action': 'droneRepaired', text: 'Repaired', hidden: '' })
+    );
+  });
+}
+function buildFamFilter(){
+  const sel = $('#famFilter');
+  sel.replaceChildren(el('option', { value: '', text: 'All families' }),
+    ...families.map(f => el('option', { value: f, text: f })));
+}
+
+/* ---------------- status + tick (cheap, 4 Hz) ---------------- */
+function statusWord(){
+  if (run.state === 'RUNNING') return 'RUNNING';
+  if (run.state === 'PENDING') return 'PENDING SUBMIT';
+  return Date.now() < finishedUntil ? 'FINISHED' : 'READY';
+}
+function renderStatusBits(){
+  const word = statusWord();
+  const pill = $('#statusPill');
+  pill.textContent = word;
+  pill.className = 'statusPill' + (run.state === 'RUNNING' ? ' run' : run.state === 'PENDING' ? ' pend' : word === 'FINISHED' ? ' done' : '');
+  qa('[data-bind="runstatus"]').forEach(n => {
+    n.textContent = word;
+    n.className = 'runStatus' + (run.state === 'RUNNING' ? ' run' : run.state === 'PENDING' ? ' pend' : '');
+  });
+  qa('[data-bind="ovstatus"]').forEach(n => {
+    n.textContent = run.state === 'RUNNING' ? `RUNNING • ROOM ${run.room}` : word;
+    n.className = 'ovStatus' + (run.state === 'RUNNING' ? ' run' : run.state === 'PENDING' ? ' pend' : '');
+  });
+}
+function renderTick(){
+  const rem = remainSec();
+  const txt = fmtMMSS(rem);
+  const low = run.state !== 'READY' && rem < 300;
+  qa('[data-bind="timer"]').forEach(n => { n.textContent = txt; n.classList.toggle('low', low); });
+  const ring = $('[data-ring]');
+  if (ring){
+    ring.style.strokeDasharray = RING_C;
+    ring.style.strokeDashoffset = RING_C * (1 - rem / RUN_SECONDS);
+    ring.classList.toggle('low', low);
+  }
+  document.title = run.state === 'RUNNING' || run.state === 'PENDING'
+    ? `${txt} — EVE Abyss Companion` : 'EVE Abyss Companion';
+  if (run.state === 'RUNNING'){
+    if (prevRemain > 300 && rem <= 300) cueFiveMin();
+    if (prevRemain > 60 && rem <= 60) cueOneMin();
+    if (prevRemain > 0 && rem <= 0) cueZero();
+    prevRemain = rem;
+  }
+  if (finishedUntil && Date.now() > finishedUntil){ finishedUntil = 0; renderStatusBits(); }
+}
+
+/* ---------------- full render (state changes) ---------------- */
+function fullRender(){
+  renderStatusBits();
+  renderTick();
+
+  const dispRoom = run.state === 'PENDING' ? 3 : run.room;
+  qa('[data-bind="roomdisp"]').forEach(n => { n.innerHTML = `Room: <b>${dispRoom}</b> / 3`; });
+  qa('[data-bind="splits"]').forEach(n => { n.textContent = fmtSplits(run.splits); });
+  qa('[data-bind="tierweather"]').forEach(n => { n.textContent = `${config.tier} • ${config.weather}`; });
+
+  qa('.roomBtn').forEach(b => {
+    const n = +b.getAttribute('data-room');
+    b.classList.toggle('done', n <= run.done);
+    b.disabled = !(run.state === 'RUNNING' && n === run.room);
+  });
+
+  qa('[data-action="start"]').forEach(b => b.disabled = run.state !== 'READY');
+  qa('[data-action="end"]').forEach(b => b.disabled = !(run.state === 'RUNNING' || run.state === 'PENDING'));
+  qa('[data-action="submit"]').forEach(b => b.disabled = run.state !== 'PENDING');
+  const useDrones = config.useDrones !== false;
+  qa('.droneRow').forEach(r => r.hidden = !useDrones);
+  qa('[data-action="droneFlag"]').forEach(b => {
+    b.disabled = !(run.state === 'RUNNING' && !run.drone);
+    b.classList.toggle('flagged', run.drone);
+    b.textContent = run.drone ? 'Drone armor damaged' : 'Drone took armor';
+  });
+  qa('[data-action="droneRepaired"]').forEach(b => b.hidden = !run.drone);
+  qa('[data-bind="dronewarn"]').forEach(n => {
+    const show = useDrones && run.droneWarn;
+    n.textContent = show ? '⚠ Repair drones!' : '';
+    n.classList.toggle('show', show);
+  });
+
+  qa('[data-seg]').forEach(wrap => {
+    const key = wrap.getAttribute('data-seg');
+    wrap.querySelectorAll('.segBtn').forEach(b => b.classList.toggle('on', b.getAttribute('data-val') === config[key]));
+  });
+
+  renderLoot();
+  renderChips();
+
+  qa('[data-show="hasDetected"]').forEach(b => b.hidden = detected.length === 0);
+  const lc = $('#btnLibClear'); if (lc) lc.hidden = detected.length === 0;
+  $('#btnLibAll').classList.toggle('toggleOn', !libDetectedOnly);
+  $('#btnLibDet').classList.toggle('toggleOn', libDetectedOnly);
+
+  qa('[data-overlaybtn]').forEach(b => b.textContent = overlayVisible ? 'Overlay ■' : 'Overlay ▶');
+  renderMon();
+}
+
+function renderLoot(){
+  ['before', 'after'].forEach(m => {
+    qa(`[data-model="${m}"]`).forEach(inp => {
+      if (inp.ownerDocument.activeElement !== inp && inp.value !== run[m]) inp.value = run[m];
+    });
+  });
+  const d = lootDelta(run.before, run.after);
+  qa('[data-bind="delta"]').forEach(n => {
+    n.textContent = fmtDelta(d);
+    n.classList.toggle('up', d !== null && d >= 0);
+    n.classList.toggle('dn', d !== null && d < 0);
+  });
+}
+
+/* ---------------- NPC library ---------------- */
+function detectedNames(){ return new Set(detected.map(d => d.e.name)); }
+function renderLibrary(){
+  const rows = $('#npcRows');
+  const fam = $('#famFilter').value;
+  const q = normText($('#npcSearch').value);
+  const det = detectedNames();
+  let list = dataset.filter(e =>
+    (!fam || e.family === fam) &&
+    (!libDetectedOnly || det.has(e.name)) &&
+    (!q || normText(e.name + ' ' + e.family + ' ' + e.cls).includes(q))
+  );
+  list = list.slice().sort((a, b) => a.family.localeCompare(b.family) || a.name.localeCompare(b.name));
+  $('#matchCount').textContent = `${list.length} / ${dataset.length}`;
+  rows.replaceChildren();
+  if (!list.length){
+    rows.append(el('div', { class: 'emptyRows', text: libDetectedOnly ? 'No detected NPCs yet — start a run.' : 'No NPCs match.' }));
+    return;
+  }
+  for (const e of list){
+    const row = el('div', { class: 'npcRow' + (selectedNpc === e.name ? ' sel' : ''), 'data-name': e.name });
+    const nm = el('span', { class: 'nm' });
+    if (det.has(e.name)) nm.append(el('i', { class: 'det' }));
+    nm.append(e.name);
+    row.append(nm,
+      el('span', { class: 'fam', text: e.family }),
+      el('span', { class: 'cls', text: e.cls }),
+      el('span', { class: 'th t-' + e.threat.replace(/\s+/g, ''), text: e.threat }),
+      el('span', { class: 'kp k-' + e.kill, text: e.kill }));
+    rows.append(row);
+  }
+}
+function selectNpc(name){
+  selectedNpc = name;
+  renderLibrary();
+  renderDetail();
+}
+function renderDetail(){
+  const e = dataset.find(x => x.name === selectedNpc);
+  if (!e){
+    $('#dName').textContent = 'NPC Library';
+    $('#dMeta').textContent = '';
+    $('#dNotes').textContent = 'Select an NPC from the list to see details.';
+    $('#dQuick').textContent = '';
+    $('#dTags').replaceChildren();
+    $('#dRaw').textContent = '';
+    return;
+  }
+  $('#dName').textContent = e.name;
+  $('#dMeta').innerHTML = `${esc(e.family)} • ${esc(e.cls)} • Threat: <b>${esc(e.threat || '—')}</b> • Kill: <b>${esc(e.kill || '—')}</b>`;
+  const extra = [e.behavior && 'Behavior: ' + e.behavior, e.ewar && 'EWAR: ' + e.ewar, e.weakTo && 'Weak to: ' + e.weakTo]
+    .filter(Boolean).join('  ·  ');
+  $('#dNotes').textContent = (e.notes || '—') + (extra ? '\n' + extra : '');
+  $('#dQuick').textContent = e.quick || '';
+  const tags = $('#dTags');
+  tags.replaceChildren();
+  e.tags.forEach(t => {
+    const s = el('span', { class: 't', text: t, style: `background:${TAG_COLORS[t] || '#3D5267'};color:#04060A;font-size:10px;font-weight:700;padding:2px 7px;` });
+    tags.append(s);
+  });
+  if (e.boss) tags.append(el('span', { text: '◆ Boss', style: `border:1px solid var(--gold);color:var(--gold);font-size:10px;font-weight:700;padding:1px 7px;` }));
+  if (!e.tags.length && !e.boss) tags.append(el('span', { text: '—', style: 'color:var(--faint)' }));
+  $('#dRaw').textContent = JSON.stringify(e.raw, null, 2);
+}
+
+/* ---------------- history + stats ---------------- */
+function fmtWhen(ts){
+  const d = new Date(ts);
+  return `${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function fmtDur(sec){
+  const s = Math.round(sec), h = Math.floor(s / 3600);
+  return h ? `${h}h ${pad2(Math.floor((s % 3600) / 60))}m` : fmtMMSS(s);
+}
+function renderHistory(){
+  const tb = $('#histRows');
+  const shown = history.slice(0, 200);
+  $('#histCount').textContent = `Runs: ${history.length} (last ${shown.length})`;
+  const flags = recordFlags(computeRecords(history));
+  tb.replaceChildren();
+  for (const r of shown){
+    const tr = el('tr');
+    const f = flags[r.ts];
+    if (f){
+      tr.classList.add('recRow');
+      if (f.has('time')) tr.classList.add('rt');
+      if (f.has('loot')) tr.classList.add('rl');
+      if (f.has('combo')) tr.classList.add('rc');
+    }
+    const when = el('td', { class: 'dimc' });
+    when.append(fmtWhen(r.ts));
+    if (f){
+      const badges = el('span', { class: 'recBadges' });
+      if (f.has('time'))  badges.append(el('i', { class: 'rb rb-t', title: 'Best time (tier+weather)', text: 'T' }));
+      if (f.has('loot'))  badges.append(el('i', { class: 'rb rb-l', title: 'Best loot (tier+weather)', text: '$' }));
+      if (f.has('combo')) badges.append(el('i', { class: 'rb rb-c', title: 'Best ISK/hr (tier+weather)', text: '★' }));
+      when.append(badges);
+    }
+    const loot = el('td', { text: fmtDelta(r.delta) });
+    loot.className = r.delta != null ? (r.delta >= 0 ? 'up' : 'dn') : 'dimc';
+    tr.append(
+      when,
+      el('td', { text: r.tier }),
+      el('td', { text: r.weather }),
+      el('td', { text: `${r.rooms}/3` }),
+      el('td', { text: fmtMMSS(r.elapsed) }),
+      el('td', { class: 'dimc', text: fmtMMSS(r.remain) }),
+      el('td', { class: 'dimc', text: fmtSplits(r.splits) || '—' }),
+      loot);
+    tb.append(tr);
+  }
+}
+function statCard(k, v, good){
+  return el('div', { class: 'statCard' }, el('div', { class: 'k', text: k }), el('div', { class: 'v' + (good ? ' good' : ''), text: v }));
+}
+
+/* ---- stats view state ---- */
+let statsScope = 'all';     // 'all' | 'session'
+let filterTier = null;      // null | 'T0'..'T6'
+let filterWeather = null;   // null | weather
+let openSession = null;     // expanded finished-session index
+
+function scopeHistory(){ return statsScope === 'session' ? sessionRuns() : history; }
+
+function renderSessionBar(){
+  const bar = $('#sessionBar'); if (!bar) return;
+  bar.replaceChildren();
+  if (session){
+    const done = session.runIds.length, tgt = session.target;
+    const pct = Math.min(100, Math.round(done / tgt * 100));
+    const info = el('div', { class: 'sessInfo' },
+      el('span', { class: 'sessName', text: session.name }),
+      el('span', { class: 'sessProg', text: `${done} / ${tgt} runs` }));
+    const track = el('div', { class: 'progTrack' }, el('div', { class: 'progFill', style: `width:${pct}%` }));
+    const btn = el('button', { class: 'btn mini danger', 'data-action': 'endSession', text: 'End session' });
+    bar.append(el('div', { class: 'sessActive' }, info, track, btn));
+  } else {
+    const form = el('div', { class: 'sessForm' });
+    form.append(
+      el('span', { class: 'sessFormLabel', text: 'New session' }),
+      el('input', { type: 'text', id: 'sessName', placeholder: 'name (optional)', spellcheck: 'false', autocomplete: 'off' }),
+      el('span', { class: 'sessTimes', text: '×' }),
+      el('input', { type: 'number', id: 'sessTarget', min: '1', value: '5', inputmode: 'numeric' }),
+      el('span', { class: 'sessRunsLbl', text: 'runs' }),
+      el('button', { class: 'btn mini', 'data-action': 'startSession', text: 'Start' })
+    );
+    bar.append(form);
+  }
+}
+
+function renderStats(){
+  renderSessionBar();
+  qa('.scopeBtn').forEach(b => b.classList.toggle('toggleOn', b.getAttribute('data-scope') === statsScope));
+  $('#scopeNote').textContent = statsScope === 'session'
+    ? (session ? `“${session.name}” — ${sessionRuns().length} run(s) so far` : 'No active session — start one above.')
+    : '';
+
+  const base = scopeHistory();
+
+  // tier filter
+  const tiersPresent = TIERS.filter(t => base.some(r => r.tier === t));
+  if (filterTier && !tiersPresent.includes(filterTier)){ filterTier = null; filterWeather = null; }
+  const tf = $('#tierFilter'); tf.replaceChildren();
+  tf.append(el('button', { class: 'btn mini filtBtn' + (!filterTier ? ' toggleOn' : ''), 'data-filt-tier': '', text: 'All tiers' }));
+  tiersPresent.forEach(t => tf.append(el('button', { class: 'btn mini filtBtn' + (filterTier === t ? ' toggleOn' : ''), 'data-filt-tier': t, text: t })));
+
+  // weather sub-filter (only when a tier is picked)
+  const wf = $('#weatherFilter'); wf.replaceChildren();
+  if (filterTier){
+    const wsPresent = WEATHERS.filter(w => base.some(r => r.tier === filterTier && r.weather === w));
+    if (filterWeather && !wsPresent.includes(filterWeather)) filterWeather = null;
+    wf.append(el('button', { class: 'btn mini filtBtn' + (!filterWeather ? ' toggleOn' : ''), 'data-filt-weather': '', text: 'All weather' }));
+    wsPresent.forEach(w => wf.append(el('button', { class: 'btn mini filtBtn' + (filterWeather === w ? ' toggleOn' : ''), 'data-filt-weather': w, text: w })));
+    wf.hidden = false;
+  } else { wf.hidden = true; }
+
+  // cards (filtered)
+  let filtered = base;
+  if (filterTier) filtered = filtered.filter(r => r.tier === filterTier);
+  if (filterWeather) filtered = filtered.filter(r => r.weather === filterWeather);
+  const s = computeStats(filtered);
+  $('#statCards').replaceChildren(
+    statCard('Runs', String(s.n)),
+    statCard('Total time', fmtDur(s.totalSec)),
+    statCard('Average run', s.n ? fmtMMSS(s.avgSec) : '—'),
+    statCard('Best run', s.best ? `${fmtMMSS(s.best.remain)} left · ${s.best.tier} ${s.best.weather}` : '—'),
+    statCard('Total loot', s.lootSum.toFixed(1) + ' M'),
+    statCard('Avg loot / run', s.avgLoot.toFixed(2) + ' M'),
+    statCard('ISK / hour', s.iskHr.toFixed(1) + ' M', true)
+  );
+
+  renderRecordsTable(base);
+  renderReco(base);
+  renderSessionList();
+}
+
+function renderRecordsTable(base){
+  const recs = computeRecords(base);
+  const keys = Object.keys(recs).sort((a, b) => {
+    const [ta, wa] = a.split('|'), [tb, wb] = b.split('|');
+    return TIERS.indexOf(ta) - TIERS.indexOf(tb) || WEATHERS.indexOf(wa) - WEATHERS.indexOf(wb);
+  });
+  const tb = $('#recordRows'); tb.replaceChildren();
+  if (!keys.length){ tb.append(el('tr', null, el('td', { class: 'dimc', colspan: '5', text: 'No runs yet.' }))); return; }
+  for (const k of keys){
+    const [t, w] = k.split('|'), b = recs[k];
+    const hi = filterTier === t && (!filterWeather || filterWeather === w);
+    const tr = el('tr', hi ? { class: 'recHi' } : null);
+    tr.append(
+      el('td', { text: t }),
+      el('td', { text: w }),
+      el('td', { class: b.time ? '' : 'dimc', text: b.time ? fmtMMSS(b.time.elapsed) : '—' }),
+      el('td', { class: b.loot ? 'up' : 'dimc', text: b.loot ? fmtDelta(b.loot.delta) : '—' }),
+      el('td', { class: b.combo ? 'up' : 'dimc', text: b.combo ? b.combo.eff.toFixed(1) + ' M' : '—' })
+    );
+    tb.append(tr);
+  }
+}
+
+function renderReco(base){
+  const reco = computeRecommendations(base);
+  const wrap = $('#recoWrap'); wrap.replaceChildren();
+  const tiers = Object.keys(reco).sort((a, b) => TIERS.indexOf(a) - TIERS.indexOf(b));
+  if (!tiers.length){
+    wrap.append(el('div', { class: 'recoEmpty', text: 'Run some Abyss sites and your best-paying weathers will rank here.' }));
+    return;
+  }
+  for (const t of tiers){
+    const rows = reco[t].slice().sort((a, b) => (b.avgEff ?? -1) - (a.avgEff ?? -1));
+    const block = el('div', { class: 'recoBlock' });
+    block.append(el('div', { class: 'recoTier', text: t }));
+    const tbody = el('tbody');
+    rows.forEach((r, i) => {
+      const best = i === 0 && r.avgEff != null;
+      const tr = el('tr', best ? { class: 'recoBest' } : null);
+      tr.append(
+        el('td', { text: r.weather + (best ? '  ★' : '') }),
+        el('td', { text: String(r.runs) }),
+        el('td', { text: r.avgLoot != null ? r.avgLoot.toFixed(1) + ' M' : '—' }),
+        el('td', { text: r.avgSec != null ? fmtMMSS(r.avgSec) : '—' }),
+        el('td', { class: 'up', text: r.avgEff != null ? r.avgEff.toFixed(1) + ' M' : '—' })
+      );
+      tbody.append(tr);
+    });
+    const tbl = el('table', { class: 'data recoTable' },
+      el('thead', null, el('tr', null,
+        el('th', { text: 'Weather' }), el('th', { text: 'Runs' }), el('th', { text: 'Avg loot' }),
+        el('th', { text: 'Avg time' }), el('th', { text: 'ISK/hr' }))),
+      tbody);
+    block.append(tbl);
+    wrap.append(block);
+  }
+}
+
+function kv(k, v){ return el('span', { class: 'sKv' }, el('i', { text: k }), el('b', { text: v })); }
+function renderSessionList(){
+  const list = $('#sessionList'); if (!list) return;
+  list.replaceChildren();
+  if (!sessions.length){ list.append(el('div', { class: 'recoEmpty', text: 'No finished sessions yet.' })); return; }
+  sessions.forEach((sn, idx) => {
+    const s = computeStats(sn.runs);
+    const row = el('div', { class: 'sessRow' + (openSession === idx ? ' open' : ''), 'data-session-idx': String(idx) },
+      el('span', { class: 'sDate', text: fmtWhen(sn.endedTs) }),
+      el('span', { class: 'sName', text: sn.name }),
+      el('span', { class: 'sMeta', text: `${sn.runs.length} run${sn.runs.length !== 1 ? 's' : ''}` }),
+      el('span', { class: 'sMeta up', text: `${s.lootSum.toFixed(1)}M` }),
+      el('span', { class: 'sMeta', text: `${s.iskHr.toFixed(1)}M/hr` }));
+    list.append(row);
+    if (openSession === idx){
+      const d = el('div', { class: 'sessDetail' },
+        kv('Runs', String(s.n)), kv('Total time', fmtDur(s.totalSec)),
+        kv('Avg run', s.n ? fmtMMSS(s.avgSec) : '—'), kv('Total loot', s.lootSum.toFixed(1) + ' M'),
+        kv('Avg loot', s.avgLoot.toFixed(2) + ' M'), kv('ISK/hr', s.iskHr.toFixed(1) + ' M'),
+        kv('Best run', s.best ? `${fmtMMSS(s.best.remain)} left · ${s.best.tier} ${s.best.weather}` : '—'),
+        el('button', { class: 'btn mini danger', 'data-action': 'deleteSession', 'data-idx': String(idx), text: 'Delete' }));
+      list.append(d);
+    }
+  });
+}
+
+/* ---- session lifecycle ---- */
+function startSession(){
+  const name = ($('#sessName')?.value || '').trim() || 'Session ' + (sessions.length + 1);
+  let target = parseInt($('#sessTarget')?.value, 10);
+  if (!Number.isFinite(target) || target < 1) target = 5;
+  target = Math.min(999, target);
+  session = { name, target, startedTs: Date.now(), runIds: [] };
+  saveSession();
+  statsScope = 'session';
+  toast(`Session started — ${name} · ${target} run${target > 1 ? 's' : ''} planned`, 'good');
+  renderStats();
+}
+function finishSession(){
+  if (!session) return;
+  const runs = sessionRuns(), name = session.name;
+  sessions.unshift({ name, target: session.target, startedTs: session.startedTs, endedTs: Date.now(), runs });
+  if (sessions.length > 100) sessions.length = 100;
+  saveSessions();
+  const s = computeStats(runs);
+  session = null; saveSession();
+  statsScope = 'all'; openSession = 0;
+  renderStats(); renderHistory();
+  toast(`Session "${name}" ended — ${runs.length} run${runs.length !== 1 ? 's' : ''} · ${s.lootSum.toFixed(1)}M · ${s.iskHr.toFixed(1)}M/hr`, 'good');
+}
+
+/* ---------------- tabs ---------------- */
+function setTab(id){
+  $$('.tabBtn').forEach(b => b.classList.toggle('on', b.getAttribute('data-tab') === id));
+  $$('.tabPane').forEach(p => p.classList.toggle('on', p.id === 'tab-' + id));
+  if (id === 'hist') renderHistory();
+  if (id === 'stats') renderStats();
+}
+
+/* ---------------- wizard ---------------- */
+let wizStep = 1;
+function showWiz(){
+  $('#setupModal').classList.add('on');
+  $$('[data-wizstep]').forEach(s => s.hidden = +s.getAttribute('data-wizstep') !== wizStep);
+  $$('[data-wizdot]').forEach(d => d.classList.toggle('on', +d.getAttribute('data-wizdot') <= wizStep));
+}
+function openWizard(){
+  wizStep = 1;
+  $('#wizAuto').checked = config.autoDetect;
+  $('#wizFolderName').value = monitor.dir ? monitor.dir.name : '';
+  showWiz();
+}
+function wizFinish(){
+  config.autoDetect = $('#wizAuto').checked;
+  config.setupComplete = true;
+  saveConfig();
+  $('#optAutoDetect').checked = config.autoDetect;
+  $('#setupModal').classList.remove('on');
+  renderMon();
+  toast("You're set. Fly safe, capsuleer.", 'good');
+}
+
+/* ---------------- import / export / reset ---------------- */
+function download(name, text, type){
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = el('a', { href: url, download: name });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function restoreDataset(){
+  store.del('eac.dataset');
+  loadDataset(); buildFamFilter();
+  selectedNpc = null;
+  renderLibrary(); renderDetail(); fullRender();
+  toast('Bundled starter dataset restored');
+}
+function exportJson(){
+  download('eac-data.json', JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    app: 'EVE Abyss Companion · Web Edition v2.1.0',
+    config, history, session, sessions, dataset: datasetMeta
+  }, null, 2), 'application/json');
+}
+function exportCsv(){
+  const head = 'time,tier,weather,rooms,elapsed_sec,remain_sec,room1_sec,room2_sec,room3_sec,before_m,after_m,delta_m';
+  const rows = history.map(r => {
+    const pr = perRoomSplits(r.splits);
+    return [
+      new Date(r.ts).toISOString(), r.tier, r.weather, r.rooms,
+      r.elapsed, r.remain,
+      pr.r1 != null ? Math.round(pr.r1) : '',
+      pr.r2 != null ? Math.round(pr.r2) : '',
+      pr.r3 != null ? Math.round(pr.r3) : '',
+      r.before ?? '', r.after ?? '', r.delta != null ? r.delta.toFixed(2) : ''
+    ].join(',');
+  });
+  download('eac-history.csv', [head, ...rows].join('\n'), 'text/csv');
+}
+function resetAll(){
+  if (!confirm('Reset all data? Settings, history, sessions and any imported dataset will be cleared.')) return;
+  store.del('eac.config'); store.del('eac.history'); store.del('eac.dataset');
+  store.del('eac.session'); store.del('eac.sessions');
+  idb.del('logDir');
+  location.reload();
+}
+function clearHistory(){
+  if (!history.length) return;
+  if (!confirm('Clear all run history?')) return;
+  history = []; saveHistory();
+  renderHistory(); renderStats();
+  toast('History cleared');
+}
+
+/* ---------------- delegated events ---------------- */
+const ACTIONS = {
+  start: startRun,
+  reset: () => resetSession(false),
+  end: endRun,
+  submit: submitRun,
+  droneFlag, droneRepaired,
+  clearDetected,
+  toggleOverlay,
+  hideOverlay: closeOverlay,
+  pickFolder,
+  resumeFolder: () => monitor.resume(),
+  importDataset: () => $('#dsImport').click(),
+  restoreDataset, exportJson, exportCsv,
+  rerunSetup: openWizard,
+  resetAll, clearHistory,
+  startSession,
+  endSession: () => { if (session && confirm('End this session now and save its summary?')) finishSession(); },
+  deleteSession: (b) => {
+    const i = +b.getAttribute('data-idx');
+    if (sessions[i] && confirm('Delete this saved session?')){
+      sessions.splice(i, 1); saveSessions(); openSession = null; renderSessionList();
+    }
+  },
+  libAll: () => { libDetectedOnly = false; renderLibrary(); fullRender(); },
+  libDetected: () => { libDetectedOnly = true; renderLibrary(); fullRender(); },
+  libClearSearch: () => { $('#npcSearch').value = ''; renderLibrary(); },
+  wizNext: () => { if (wizStep < 3){ wizStep++; showWiz(); } },
+  wizBack: () => { if (wizStep > 1){ wizStep--; showWiz(); } },
+  wizFinish
+};
+function onRootClick(ev){
+  const seg = ev.target.closest('.segBtn');
+  if (seg){
+    const wrap = seg.closest('[data-seg]');
+    if (wrap){
+      const key = wrap.getAttribute('data-seg');
+      config[key] = seg.getAttribute('data-val');
+      saveConfig();
+      if (key === 'weather' || key === 'tier') applyTheme();
+      fullRender();
+      return;
+    }
+  }
+  const rb = ev.target.closest('.roomBtn');
+  if (rb){ markRoom(+rb.getAttribute('data-room')); return; }
+  const row = ev.target.closest('.npcRow');
+  if (row){ selectNpc(row.getAttribute('data-name')); return; }
+  const tab = ev.target.closest('.tabBtn');
+  if (tab){ setTab(tab.getAttribute('data-tab')); return; }
+  const sc = ev.target.closest('[data-scope]');
+  if (sc){ statsScope = sc.getAttribute('data-scope'); renderStats(); return; }
+  const ftt = ev.target.closest('[data-filt-tier]');
+  if (ftt){ filterTier = ftt.getAttribute('data-filt-tier') || null; filterWeather = null; renderStats(); return; }
+  const ftw = ev.target.closest('[data-filt-weather]');
+  if (ftw){ filterWeather = ftw.getAttribute('data-filt-weather') || null; renderStats(); return; }
+  const srow = ev.target.closest('[data-session-idx]');
+  if (srow){ const i = +srow.getAttribute('data-session-idx'); openSession = (openSession === i ? null : i); renderSessionList(); return; }
+  const act = ev.target.closest('[data-action]');
+  if (act){ const fn = ACTIONS[act.getAttribute('data-action')]; if (fn) fn(act); }
+}
+function onRootInput(ev){
+  const t = ev.target;
+  const m = t.getAttribute && t.getAttribute('data-model');
+  if (m){
+    const v = sanitizeIsk(t.value);
+    if (t.value !== v) t.value = v;
+    run[m] = v;
+    qa(`[data-model="${m}"]`).forEach(inp => { if (inp !== t) inp.value = v; });
+    renderLoot();
+    return;
+  }
+  if (t.id === 'npcSearch') renderLibrary();
+}
+function wireRoot(doc){
+  doc.addEventListener('click', onRootClick);
+  doc.addEventListener('input', onRootInput);
+}
+
+/* ---------------- init ---------------- */
+async function init(){
+  loadDataset();
+  buildFamFilter();
+  buildControls();
+  wireRoot(document);
+
+  $('#optOverlayAlways').checked = config.alwaysOverlay;
+  $('#optAutoDetect').checked = config.autoDetect;
+  $('#optAudio').checked = config.audio;
+  $('#optUseDrones').checked = config.useDrones !== false;
+  $('#optOverlayAlways').addEventListener('change', e => {
+    config.alwaysOverlay = e.target.checked; saveConfig();
+    if (config.alwaysOverlay && !overlayVisible) openOverlay();   // the click is our user gesture
+  });
+  $('#optAutoDetect').addEventListener('change', e => {
+    config.autoDetect = e.target.checked; saveConfig();
+    if (!config.autoDetect) monitor.stop();
+    else if (run.state === 'RUNNING') monitor.start();
+    renderMon();
+  });
+  $('#optAudio').addEventListener('change', e => { config.audio = e.target.checked; saveConfig(); });
+  $('#optUseDrones').addEventListener('change', e => {
+    config.useDrones = e.target.checked; saveConfig();
+    if (!config.useDrones){ run.drone = false; run.droneWarn = false; }
+    fullRender();
+  });
+  $('#famFilter').addEventListener('change', renderLibrary);
+  $('#dsImport').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      const arr = JSON.parse(await f.text());
+      if (!Array.isArray(arr)) throw new Error('expected a JSON array');
+      const norm = arr.map(normalizeEntry).filter(x => x.name);
+      if (!norm.length) throw new Error('no valid NPC entries found');
+      store.set('eac.dataset', { raw: arr, meta: { source: 'imported', name: f.name, when: Date.now() } });
+      loadDataset(); buildFamFilter();
+      selectedNpc = null;
+      renderLibrary(); renderDetail(); fullRender();
+      toast(`Dataset imported: ${norm.length} NPCs from ${f.name}`, 'good');
+    } catch(err){
+      toast('Import failed — keeping the current dataset. (' + err.message + ')', 'warn');
+    }
+  });
+
+  applyTheme();
+  setLastRun(history[0] || null);
+  await monitor.restore();
+
+  renderLibrary(); renderDetail(); renderHistory(); renderStats();
+  fullRender();
+  setInterval(renderTick, 250);
+
+  if (!config.setupComplete) openWizard();
+  else if (config.alwaysOverlay){
+    toast('Always-on overlay is enabled — click Overlay ▶ to bring it up (browsers need one click).');
+  }
+  window.addEventListener('beforeunload', saveConfig);
+}
+init();
+</script>
+</body>
+</html>
