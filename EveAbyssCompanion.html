@@ -12,6 +12,9 @@
    entire cockpit is driven by the selected filament weather.
    ============================================================ */
 
+/* @property enables animated CSS custom property transitions in Chromium.
+   Firefox ignores unknown at-rules gracefully — the --accent variable still works,
+   just without the colour-transition animation on weather change. */
 @property --accent {
   syntax: '<color>';
   inherits: true;
@@ -840,8 +843,9 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
               <span class="mono">Documents\EVE\logs\Gamelogs</span>. This is how the companion sees NPCs:
               it only ever <b>reads</b> the log files EVE writes to disk. No memory reading, no game hooks,
               nothing that touches the client. You can change the folder any time under <b>Systems</b>.</p>
-            <p>Folder access and the floating overlay need a Chromium browser (Chrome / Edge / Opera GX)
-              opened directly on this file.</p>
+            <p>Folder access and the floating overlay work best in Chromium (Chrome / Edge). Firefox is supported for all other features;
+              NPC detection requires you to load the Gamelogs folder via the folder picker at the start of each room (Firefox cannot watch files for live changes).
+              You can change the folder any time under <b>Systems</b>.</p>
           </div>
 
           <div class="gSection">
@@ -912,9 +916,9 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
           <p>A free companion for Abyssal Deadspace runs. It reads your EVE Online game log files from disk to
             detect NPCs — no memory reading, no game hooks, no injection, no EVE API calls. Everything runs and
             stays on your machine: settings, history and your NPC dataset never leave this file.</p>
-          <p><b style="color:var(--text)">Requirements:</b> a Chromium browser (Chrome or Edge) opened directly on this file.
-            Folder access and the always-on-top overlay use the File System Access and Document Picture-in-Picture
-            APIs, which Firefox does not currently ship.</p>
+          <p><b style="color:var(--text)">Requirements:</b> a modern browser (Chrome, Edge, or Firefox) opened directly on this file.
+            The floating always-on-top overlay and seamless live log monitoring use APIs only available in Chromium (Chrome / Edge).
+            Firefox is fully supported for all other features; NPC detection works via the folder picker with a one-time file load per room.</p>
           <div class="workLabel">Support the project</div>
           <ul class="linkList">
             <li><b>Ko-fi</b> <a href="https://ko-fi.com/jakkelsza" target="_blank" rel="noopener">ko-fi.com/jakkelsza</a></li>
@@ -1034,34 +1038,74 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 <!-- ============ BUNDLED STARTER DATASET (schema-compatible with npc_dataset.json) ============ -->
 <script type="application/json" id="bundledDataset">
 [
- {"name":"Damavik","family":"Triglavian","class":"Frigate","threat":"Low","kill_priority":"Mid","notes":"Baseline Triglavian frigate. Ramping entropic disintegrator — damage climbs the longer it holds the same lock.","quick_handle":"Low threat. Clear after EWAR frigates.","is_boss":false,"overlay_tags":[]},
- {"name":"Striking Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Higher-damage Damavik variant.","quick_handle":"Clear early before the ramp stacks.","is_boss":false,"overlay_tags":[]},
- {"name":"Tangling Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Tackle variant — webs and warp scrambles. The one that gets you killed sitting at the gate.","quick_handle":"Kill first. Always.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
+ {"name":"Damavik","family":"Triglavian","class":"Frigate","threat":"Low","kill_priority":"Mid","notes":"Baseline Triglavian frigate. Ramping entropic disintegrator — damage climbs the longer it holds the same lock.","quick_handle":"Low threat. Clear after EWAR frigates.","is_boss":false,"overlay_tags":[],"behavior":"Ramping damage; break lock to reset the ramp."},
+ {"name":"Striking Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Higher-damage Damavik variant. Same ramp mechanic as baseline but hits harder from the start.","quick_handle":"Clear early before the ramp stacks.","is_boss":false,"overlay_tags":[]},
+ {"name":"Tangling Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Tackle variant — webs and warp scrambles at up to 9km. The one that gets you killed sitting at the gate.","quick_handle":"Kill first. Always.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
  {"name":"Blinding Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Sensor dampening variant — eats your lock range and targeting speed.","quick_handle":"Early kill if your locks start failing.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Starving Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Energy neutraliser variant — drains capacitor.","quick_handle":"First or second kill for any cap-hungry fit.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
- {"name":"Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"Early","notes":"Triglavian destroyer — heavy ramping damage for its size.","quick_handle":"Do not let it ramp. Kill early.","is_boss":false,"overlay_tags":[]},
- {"name":"Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Triglavian cruiser with a serious sustained ramp.","quick_handle":"Break its ramp — kill it or break its lock with range.","is_boss":false,"overlay_tags":[],"behavior":"Damage increases the longer it fires on one target."},
- {"name":"Striking Vedmak","family":"Triglavian","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Vedmak.","quick_handle":"Priority target once tackle is down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Starving Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Energy neutraliser variant — drains capacitor. Can flatline active tanks fast.","quick_handle":"First or second kill for any cap-hungry fit.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
+ {"name":"Ghosting Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"ECM-variant Damavik — breaks your target lock entirely. One jam means you cannot shoot back for several seconds.","quick_handle":"Kill early; a lucky jam during a tight room clears your locks at the worst time.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"ECM (target jam)"},
+ {"name":"Anchoring Damavik","family":"Triglavian","class":"Frigate","threat":"Low","kill_priority":"Last","notes":"DPS support frigate. Lower individual threat but adds to the room's total ramp pressure.","quick_handle":"Low priority — clear after EWAR and tackle.","is_boss":false,"overlay_tags":[]},
+ {"name":"Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"Early","notes":"Triglavian destroyer — heavy ramping disintegrator damage for its size. Punches well above its hull class.","quick_handle":"Do not let it ramp. Kill early.","is_boss":false,"overlay_tags":[],"behavior":"Ramping disintegrator; sustained fire becomes very dangerous."},
+ {"name":"Striking Kikimora","family":"Triglavian","class":"Destroyer (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite Kikimora with higher base damage output. The ramp accelerates even faster — it can solo a badly-fit cruiser quickly.","quick_handle":"Priority target. Treat it like a mini-Leshak.","is_boss":false,"overlay_tags":[]},
+ {"name":"Tangling Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"First","notes":"Tackle Kikimora — webs and warp scrambles at destroyer range. Dangerous because it combines tackle with serious ramp damage.","quick_handle":"Kill first; it is both tackle and damage.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
+ {"name":"Ghosting Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"Early","notes":"ECM destroyer. Breaks locks and keeps ramping the whole time you cannot fire back.","quick_handle":"Kill early — a sustained jam is very costly on a ramp-based NPC.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"ECM (target jam)"},
+ {"name":"Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Triglavian cruiser with a serious sustained ramp. Core threat in most Triglavian filament rooms.","quick_handle":"Break its ramp — kill it or break its lock with range.","is_boss":false,"overlay_tags":[],"behavior":"Damage increases the longer it fires on one target."},
+ {"name":"Striking Vedmak","family":"Triglavian","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Vedmak. Higher base output; ramp damage becomes lethal quickly.","quick_handle":"Priority target once tackle is down.","is_boss":false,"overlay_tags":[]},
  {"name":"Tangling Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Cruiser-class tackle — webs and scrams while the room shoots you.","quick_handle":"Kill with the tackle frigates, before the DPS.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
- {"name":"Blinding Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Early","notes":"Sensor dampening cruiser.","quick_handle":"Early kill — damps stack badly with range.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Starving Vedmak","family":"Triglavian","class":"Cruiser","threat":"Very High","kill_priority":"First","notes":"Heavy energy neutraliser pressure.","quick_handle":"Active-tank killer — put it down fast.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
- {"name":"Drekavac","family":"Triglavian","class":"Battlecruiser","threat":"Very High","kill_priority":"Mid","notes":"Heavy hitter. Respect the alpha and the ramp.","quick_handle":"Manage range; do not face-tank the ramp.","is_boss":false,"overlay_tags":[]},
+ {"name":"Blinding Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Early","notes":"Sensor dampening cruiser. Damps stack badly with range, can shut down a long-range fit.","quick_handle":"Early kill — damps stack badly with range.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
+ {"name":"Starving Vedmak","family":"Triglavian","class":"Cruiser","threat":"Very High","kill_priority":"First","notes":"Heavy energy neutraliser pressure at cruiser range.","quick_handle":"Active-tank killer — put it down fast.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
+ {"name":"Harrowing Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Early","notes":"Tracking disruption Vedmak — reduces your turret optimal and tracking, and disrupts missile guidance. Hurts turret and missile boats equally.","quick_handle":"Kill early; its disrupt compounds the room's incoming damage.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Tracking disruptor, guidance disruptor"},
+ {"name":"Drekavac","family":"Triglavian","class":"Battlecruiser","threat":"Very High","kill_priority":"Mid","notes":"Heavy Triglavian battlecruiser — high alpha and serious ramp. Respect the damage output.","quick_handle":"Manage range; do not face-tank the ramp.","is_boss":false,"overlay_tags":[]},
+ {"name":"Striking Drekavac","family":"Triglavian","class":"Battlecruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Drekavac. Even higher base and ramp. If this is in the room it should be a top priority.","quick_handle":"Burn it down quickly before the ramp makes it unmanageable.","is_boss":false,"overlay_tags":[]},
+ {"name":"Shining Drekavac","family":"Triglavian","class":"Battlecruiser","threat":"High","kill_priority":"Mid","notes":"Target painter Drekavac — paints your sig radius up, making every other enemy hit you harder. Dangerous in missile-heavy Triglavian rooms.","quick_handle":"Kill it alongside other priority targets; the paint multiplies all incoming damage.","is_boss":false,"overlay_tags":["Paint"],"ewar":"Target painter"},
  {"name":"Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Mid","notes":"Triglavian battleship — the longer it lives, the harder it hits. Boss rooms often anchor on a Leshak-class hull.","quick_handle":"Commit and break it, or stay out of its envelope.","is_boss":false,"overlay_tags":[],"behavior":"Ramping disintegrator; extreme damage if ignored."},
+ {"name":"Striking Leshak","family":"Triglavian","class":"Battleship (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Leshak. Highest base damage of any Triglavian battleship and the ramp makes it terrifying if ignored.","quick_handle":"All DPS here first once support is clear.","is_boss":false,"overlay_tags":[]},
+ {"name":"Tangling Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"First","notes":"Tackle battleship — long-range warp scrambler at battleship range. Being scrammed by a Leshak and taking its ramp simultaneously is a death sentence.","quick_handle":"Drop everything and kill this first if it appears.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Warp scrambler, stasis webifier"},
  {"name":"Starving Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"First","notes":"Battleship-class neut pressure that can flatline a cap chain.","quick_handle":"Kill before your booster runs dry.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
  {"name":"Blinding Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Early","notes":"Damping battleship — can lock you out of the fight entirely.","quick_handle":"Early kill or fight inside its damp floor.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Rodiva","family":"Triglavian","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Triglavian logistics cruiser — remote repairs keep the room alive.","quick_handle":"Kill first or your DPS does nothing.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
- {"name":"Renewing Rodiva","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Stronger remote-repair Rodiva variant.","quick_handle":"First on the kill order, every time.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
- {"name":"Lucid Firewatcher","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter line cruiser — steady omni damage.","quick_handle":"Standard clear once support is down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Renewing Leshak","family":"Triglavian","class":"Battleship","threat":"High","kill_priority":"First","notes":"Logistics Leshak — remote armor repairs at battleship tank level. Repping the entire room is enough to stall weak DPS indefinitely.","quick_handle":"Kill it before anything else; it out-reps sustained medium DPS easily.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
+ {"name":"Warding Leshak","family":"Triglavian","class":"Battleship","threat":"High","kill_priority":"Mid","notes":"Remote shield rep Leshak. Less common than the Renewing variant but the same problem — you will not kill the room while it is alive.","quick_handle":"Same as Renewing Leshak: kill first.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote shield repair"},
+ {"name":"Rodiva","family":"Triglavian","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Triglavian logistics cruiser — remote armor repairs keep the room alive.","quick_handle":"Kill first or your DPS does nothing.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
+ {"name":"Renewing Rodiva","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Stronger remote-repair Rodiva variant. More rep throughput than the baseline.","quick_handle":"First on the kill order, every time.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
+ {"name":"Ephialtes Lancer","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"Medium","kill_priority":"Mid","notes":"Drifter-family autonomous drone. Pure EM/Thermal missile damage at 12km optimal. Higher damage modifier (3x) than most Ephialtes variants — the damage dealer of the family.","quick_handle":"Mid-priority DPS. Clear after EWAR variants.","is_boss":false,"overlay_tags":[],"ewar":"None","behavior":"Missile-based EM/Thermal damage. No EWAR."},
+ {"name":"Ephialtes Entangler","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"High","kill_priority":"First","notes":"Stasis webifier drone. Webs to 10km range — slows you down and holds you in the damage envelope of the rest of the spawn.","quick_handle":"Kill with tackle priority; a web enables everything else in the room to hit harder.","is_boss":false,"overlay_tags":["Web"],"ewar":"Stasis webifier (-40% velocity)","behavior":"Orbits at 8km."},
+ {"name":"Ephialtes Spearfisher","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"High","kill_priority":"First","notes":"Warp scrambler drone. 9km scramble range with strength 2 — pins you in place. Combining a scram with the spawn's missile barrage is the main way Ephialtes rooms kill you.","quick_handle":"Kill alongside or just before the Entangler.","is_boss":false,"overlay_tags":["Scram"],"ewar":"Warp scrambler (strength 2, 9km range)","behavior":"Orbits at 7km."},
+ {"name":"Ephialtes Dissipator","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"Very High","kill_priority":"First","notes":"Energy neutraliser drone. Drains 100 GJ per cycle at 8km range. Against an active tank this is the kill condition — caps flatten quickly with multiple Dissipators in the room.","quick_handle":"First kill if running an active tank; can flatline your reps in seconds.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser (100 GJ, 8km range, 10s cycle)","behavior":"Orbits close; tries to stay inside neut range."},
+ {"name":"Ephialtes Obfuscator","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"High","kill_priority":"Early","notes":"Sensor dampening drone. Reduces lock range by 15% and scan resolution by 15%. Multiple Obfuscators stack and can prevent you from locking anything at useful range.","quick_handle":"Early kill; damps stack and shut down targeting fast.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener (-15% lock range, -15% scan res, 15km range)"},
+ {"name":"Ephialtes Illuminator","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"Medium","kill_priority":"Early","notes":"Target painter drone. Inflates your signature radius by 25% — makes every missile and turret in the room hit you for more damage. Especially dangerous in rooms with multiple DPS drones.","quick_handle":"Early kill; the sig boost multiplies all incoming damage.","is_boss":false,"overlay_tags":["Paint"],"ewar":"Target painter (+25% signature radius, 20km range)"},
+ {"name":"Ephialtes Confuser","family":"Drifters/Seekers","class":"Drone (Frigate)","threat":"High","kill_priority":"Early","notes":"Combined tracking disruptor and guidance disruptor drone. Degrades turret optimal/tracking/falloff by 10% and missile velocity/flight time by 8%. Stacks multiplicatively with other disruption.","quick_handle":"Kill early; the combined disruption degrades your effective DPS significantly.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Tracking disruptor + guidance disruptor (30km range)"},
+ {"name":"Lucid Escort","family":"Drifters/Seekers","class":"Frigate","threat":"Low","kill_priority":"Last","notes":"Drifter escort frigate. Light damage; no meaningful EWAR.","quick_handle":"Low priority — mop up after real threats.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Firewatcher","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter line cruiser — steady omni damage, no EWAR. Pure DPS slot in the room.","quick_handle":"Standard clear once support is down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Watchman","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter cruiser. DPS/support hybrid; similar threat level to the Firewatcher.","quick_handle":"Clear alongside other line cruisers.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Sentinel","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter support cruiser. No standout EWAR; treat as standard DPS.","quick_handle":"Clear once logistics and high-priority targets are down.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Warden","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter cruiser — similar role to the Sentinel.","quick_handle":"Standard line target.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucid Upholder","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter cruiser. DPS-focused with no high-impact EWAR.","quick_handle":"Standard line target.","is_boss":false,"overlay_tags":[]},
  {"name":"Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Drifter logistics — chains remote reps across the spawn.","quick_handle":"Kill first; watch the rep chain swap.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
- {"name":"Arch Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser (Elite)","threat":"High","kill_priority":"First","notes":"Elite Drifter logistics. Out-reps low DPS entirely.","quick_handle":"All damage here first.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
- {"name":"Karybdis Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss. Spawns 80km+ already kiting — send drones immediately or you will never close the gap before the timer eats you.","quick_handle":"Drones out the moment it lands. Do not chase it with the clock running.","is_boss":true,"overlay_tags":[],"behavior":"Kites at extreme range from spawn."},
+ {"name":"Lucid Deepwatcher","family":"Drifters/Seekers","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Stronger Drifter logistics cruiser. Higher rep throughput than the baseline Preserver; out-reps moderate DPS.","quick_handle":"Kill before you touch anything else.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
+ {"name":"Lucid Aegis","family":"Drifters/Seekers","class":"Frigate","threat":"Low","kill_priority":"Last","notes":"Drifter escort/support frigate.","quick_handle":"Low priority — clean up at the end.","is_boss":false,"overlay_tags":[]},
+ {"name":"Arch Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser (Elite)","threat":"High","kill_priority":"First","notes":"Elite Drifter logistics. Out-reps low DPS entirely — if left alive the room becomes unkillable.","quick_handle":"All damage here first.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
+ {"name":"Karybdis Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss. Spawns 80km+ already kiting — send drones immediately or you will never close the gap before the timer eats you. Heavy omni damage; respect the alpha.","quick_handle":"Drones out the moment it lands. Do not chase it with the clock running.","is_boss":true,"overlay_tags":[],"behavior":"Kites at extreme range from spawn."},
  {"name":"Scylla Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss — heavy hits; manage range and transversal.","quick_handle":"Respect the alpha; keep speed up.","is_boss":true,"overlay_tags":[]},
  {"name":"Circadian Seeker","family":"Drifters/Seekers","class":"Cruiser","threat":"Low","kill_priority":"Last","notes":"Scout-class wanderer. Minor threat on its own.","quick_handle":"Clean up after real threats are down.","is_boss":false,"overlay_tags":[]},
  {"name":"Devoted Hunter","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate — area damage shreds drones and frigates at close range. A known killer in frigate-class Abyssals.","quick_handle":"Never let drones orbit it. Kill from range, first.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
- {"name":"Devoted Knight","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate, same family of pain as the Hunter.","quick_handle":"Range is life. Drones in bay until it is dead.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
- {"name":"Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser","threat":"Very High","kill_priority":"Early","notes":"Destroys drones — pull them immediately when this lands on grid.","quick_handle":"Drones in bay first, then fight it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
- {"name":"Elite Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite variant. Destroys drones — pull them immediately.","quick_handle":"Drones in bay. Do not test it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
- {"name":"Lucifer Dramiel","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Fast Angel frigate — hard to track when it is under your guns.","quick_handle":"Web it or out-fly it; do not chase.","is_boss":false,"overlay_tags":[]}
+ {"name":"Devoted Knight","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate, same family of pain as the Hunter. Identical threat profile.","quick_handle":"Range is life. Drones in bay until it is dead.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
+ {"name":"Devoted Fisher","family":"Sansha's Nation","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Sansha support frigate found in Abyssal filaments. Less immediate than the smartbombers but contributes to spawn pressure.","quick_handle":"Early kill after smartbombers are clear.","is_boss":false,"overlay_tags":[]},
+ {"name":"Devoted Trapper","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Warp scramble / tackle Sansha frigate. Pin-down role — keeps you in the smartbomb range of its friends.","quick_handle":"Kill alongside or before the smartbombers.","is_boss":false,"overlay_tags":["Scram"],"ewar":"Warp scrambler"},
+ {"name":"Devoted Priest","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Sansha logistics frigate — remote reps keep the room alive.","quick_handle":"First on the kill order before anything else.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
+ {"name":"Devoted Smith","family":"Sansha's Nation","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Sansha support frigate. Contributes to room DPS.","quick_handle":"Clear after tackle and logistics.","is_boss":false,"overlay_tags":[]},
+ {"name":"Devoted Lookout","family":"Sansha's Nation","class":"Frigate","threat":"Medium","kill_priority":"Mid","notes":"Sansha support/spotter frigate.","quick_handle":"Standard mid-priority clear.","is_boss":false,"overlay_tags":[]},
+ {"name":"Devoted Herald","family":"Sansha's Nation","class":"Frigate","threat":"Medium","kill_priority":"Mid","notes":"Sansha support frigate.","quick_handle":"Clear alongside other mid-priority targets.","is_boss":false,"overlay_tags":[]},
+ {"name":"Devoted Torchbearer","family":"Sansha's Nation","class":"Frigate","threat":"Medium","kill_priority":"Mid","notes":"Sansha support frigate.","quick_handle":"Clear with other line targets.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser","threat":"Very High","kill_priority":"Early","notes":"Destroys drones — pull them immediately when this lands on grid. Fast and mobile.","quick_handle":"Drones in bay first, then fight it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
+ {"name":"Elite Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite variant. Destroys drones — pull them immediately. Higher damage than baseline.","quick_handle":"Drones in bay. Do not test it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
+ {"name":"Lucifer Dramiel","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Fast Angel frigate — hard to track when it is under your guns.","quick_handle":"Web it or out-fly it; do not chase.","is_boss":false,"overlay_tags":[]},
+ {"name":"Elite Lucifer Dramiel","family":"Angels (Lucifer)","class":"Frigate (Elite)","threat":"High","kill_priority":"Early","notes":"Elite Dramiel variant. Higher speed and damage; same drone-proximity risk if you have fighters out.","quick_handle":"Web and kill early; do not let it dictate range.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Ixion","family":"Angels (Lucifer)","class":"Cruiser","threat":"Very High","kill_priority":"Early","notes":"Heavy Angel cruiser found in Lucifer filaments. High damage output; kills drones on contact.","quick_handle":"Drones in bay. Burn it down early.","is_boss":false,"overlay_tags":[],"behavior":"Targets and destroys drones."},
+ {"name":"Lucifer Fury","family":"Angels (Lucifer)","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Angel cruiser DPS variant. Serious damage but no exceptional EWAR.","quick_handle":"Standard priority after drone-killers.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Echo","family":"Angels (Lucifer)","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Angel cruiser support variant.","quick_handle":"Clear with other line cruisers.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Medusa","family":"Angels (Lucifer)","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Angel cruiser. Contributes to room DPS.","quick_handle":"Standard line target.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Burst","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Mid","notes":"Angel frigate DPS slot. Lower individual threat than the Dramiel.","quick_handle":"Clear after higher-priority targets.","is_boss":false,"overlay_tags":[]},
+ {"name":"Lucifer Swordspine","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Mid","notes":"Angel frigate. Contributes to spawn DPS.","quick_handle":"Standard line frigate.","is_boss":false,"overlay_tags":[]}
 ]
 </script>
 
@@ -1650,9 +1694,15 @@ function renderChips(){ qa('.chips').forEach(buildChipsInto); }
 
 /* ---------------- log monitor ---------------- */
 const FS_OK = typeof window.showDirectoryPicker === 'function';
+/* Firefox fallback: directory input via <input webkitdirectory> */
+const DIR_INPUT_OK = !FS_OK && (function(){ const i = document.createElement('input'); i.type='file'; return 'webkitdirectory' in i; })();
+/* Firefox folder watch state */
+let ffFiles = [];      // File[] array from webkitdirectory pick
+let ffFileIdx = {};    // name → File for quick lookup
 const monitor = {
   dir: null, fileHandle: null, fileName: '', size: 0, enc: null,
   active: false, pollId: 0, scanId: 0, lastErr: '', permission: 'none',
+  ffName: '',   // Firefox: friendly folder name derived from webkitRelativePath
 
   async adopt(handle){
     this.dir = handle; this.permission = 'granted'; this.lastErr = '';
@@ -1660,6 +1710,7 @@ const monitor = {
     renderMon();
   },
   async restore(){
+    if (!FS_OK) { renderMon(); return; }  // Firefox: no IDB handle to restore
     const h = await idb.get('logDir');
     if (!h) { renderMon(); return; }
     this.dir = h;
@@ -1680,6 +1731,17 @@ const monitor = {
   },
   async start(){
     if (this.active || !config.autoDetect) { renderMon(); return; }
+    // Firefox path: ffScan does a one-shot read of already-loaded files
+    if (!FS_OK && DIR_INPUT_OK){
+      if (!ffFiles.length){ renderMon(); return; }
+      this.active = true;
+      await this.ffScan(true);
+      // Firefox can't poll live file changes; do periodic re-scan of in-memory files
+      // (EVE log lines already written will be re-checked; seen set dedupes them)
+      this.pollId = setInterval(() => this.ffScan(false), 2000);
+      renderMon();
+      return;
+    }
     if (!this.dir || this.permission !== 'granted'){ renderMon(); return; }
     this.active = true;
     this.fileHandle = null; this.fileName = ''; this.size = 0; this.enc = null;
@@ -1692,6 +1754,23 @@ const monitor = {
     if (!this.active) return;
     this.active = false;
     clearInterval(this.pollId); clearInterval(this.scanId);
+    renderMon();
+  },
+  /* Firefox: pick the newest .txt from the in-memory File[] array and scan it */
+  async ffScan(fromEnd){
+    if (!ffFiles.length) return;
+    try {
+      const txts = ffFiles.filter(f => f.name.toLowerCase().endsWith('.txt'));
+      if (!txts.length) return;
+      const newest = txts.reduce((a, b) => (b.lastModified > a.lastModified ? b : a));
+      const text = await newest.text();
+      const lines = text.split(/\r?\n/);
+      // fromEnd: only scan last 200 lines to avoid replaying old combat
+      const slice = fromEnd ? lines.slice(-200).join('\n') : text;
+      this.fileName = newest.name;
+      const hits = extractDetections(slice, resolver, seen);
+      if (hits.length) addDetections(hits);
+    } catch(e){ /* file read error, silently skip */ }
     renderMon();
   },
   async scan(fromEnd){
@@ -1742,9 +1821,23 @@ function renderMon(){
   const m = $('#monStatus');
   if (!m) return;
   const lines = [];
-  if (!FS_OK){
+  if (!FS_OK && !DIR_INPUT_OK){
     lines.push('<span class="err">Folder access is unavailable in this context.</span>');
-    lines.push('Open this file directly in Chrome or Edge to enable log detection.');
+    lines.push('Open this file directly in Chrome, Edge, or Firefox to enable log detection.');
+  } else if (!FS_OK && DIR_INPUT_OK){
+    // Firefox webkitdirectory mode
+    lines.push('Folder: <b>' + (monitor.ffName || (ffFiles.length ? 'selected' : 'not selected')) + '</b>');
+    if (ffFiles.length){
+      lines.push('Files loaded: <b>' + ffFiles.length + '</b> · Watching: <b>' + (monitor.fileName || '—') + '</b>');
+    } else {
+      lines.push('<span class="err">Click "Choose Gamelogs folder…" to load log files.</span>');
+    }
+    const state = !config.autoDetect ? 'off'
+      : monitor.active ? '<span class="ok">ACTIVE (polling in-memory)</span>'
+      : ffFiles.length ? 'armed — starts with the run'
+      : 'waiting for folder';
+    lines.push('Monitor: ' + state + ' · Detected this room: <b>' + detected.length + '</b>');
+    lines.push('<span class="err">Note: Firefox cannot watch for new log lines in real time. Re-select the folder each room to refresh detections.</span>');
   } else {
     lines.push('Folder: <b>' + (monitor.dir ? esc(monitor.dir.name) : 'not selected') + '</b>');
     if (monitor.permission === 'prompt') lines.push('<span class="err">Access needs to be re-confirmed.</span>');
@@ -1765,16 +1858,42 @@ function renderMon(){
 }
 
 async function pickFolder(){
-  if (!FS_OK){ toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn'); return; }
-  try {
-    const h = await window.showDirectoryPicker({ id: 'eveGamelogs', mode: 'read' });
-    await monitor.adopt(h);
-    const w = $('#wizFolderName'); if (w) w.value = h.name;
-    toast('Gamelogs folder set: ' + h.name, 'good');
-    if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
-  } catch(e){
-    if (e && e.name === 'AbortError') return;
-    toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn');
+  if (FS_OK){
+    try {
+      const h = await window.showDirectoryPicker({ id: 'eveGamelogs', mode: 'read' });
+      await monitor.adopt(h);
+      const w = $('#wizFolderName'); if (w) w.value = h.name;
+      toast('Gamelogs folder set: ' + h.name, 'good');
+      if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+    } catch(e){
+      if (e && e.name === 'AbortError') return;
+      toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn');
+    }
+  } else if (DIR_INPUT_OK){
+    // Firefox: use a hidden <input webkitdirectory> to load all files from the folder
+    const inp = el('input', { type: 'file' });
+    inp.setAttribute('webkitdirectory', '');
+    inp.style.display = 'none';
+    document.body.append(inp);
+    inp.addEventListener('change', async () => {
+      const files = Array.from(inp.files || []);
+      inp.remove();
+      if (!files.length) return;
+      ffFiles = files;
+      ffFileIdx = {};
+      files.forEach(f => { ffFileIdx[f.name] = f; });
+      // Derive a folder name from the first file's webkitRelativePath
+      monitor.ffName = files[0].webkitRelativePath.split('/')[0] || 'selected';
+      const w = $('#wizFolderName'); if (w) w.value = monitor.ffName;
+      // Immediately scan for the newest .txt log
+      await monitor.ffScan(true);
+      renderMon();
+      toast('Gamelogs folder loaded: ' + files.length + ' files', 'good');
+      if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+    });
+    inp.click();
+  } else {
+    toast('Folder access is unavailable in this browser.', 'warn');
   }
 }
 
@@ -1808,10 +1927,14 @@ async function openOverlay(){
     } catch(e){ pipWin = null; }
   }
   // Fallback: docked in-page overlay (Firefox / sandboxed preview)
+  // On Firefox this is the primary path — no toast warning needed
   $('#overlayDock').hidden = false;
   floatMode = true; overlayVisible = true;
   fullRender();
-  toast('True always-on-top needs Chrome/Edge opened directly on this file — showing a docked overlay instead.', 'warn');
+  if ('documentPictureInPicture' in window){
+    // Only warn if Chrome/Edge PiP was expected but failed
+    toast('True always-on-top needs Chrome/Edge opened directly on this file — showing a docked overlay instead.', 'warn');
+  }
 }
 function onPipClosed(){
   if (!pipWin) return;
