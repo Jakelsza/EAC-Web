@@ -12,6 +12,9 @@
    entire cockpit is driven by the selected filament weather.
    ============================================================ */
 
+/* @property enables animated CSS custom property transitions in Chromium.
+   Firefox ignores unknown at-rules gracefully — the --accent variable still works,
+   just without the colour-transition animation on weather change. */
 @property --accent {
   syntax: '<color>';
   inherits: true;
@@ -294,6 +297,12 @@ body::after {
 .monStatus .err { color: var(--warn); }
 .sysBtns { display: flex; flex-direction: column; gap: 7px; }
 .divider { height: 1px; background: var(--edge); margin: 14px 0; }
+.dropZone {
+  border: 1px dashed var(--edge-2); padding: 9px 12px;
+  font-size: 11.5px; color: var(--faint); text-align: center; letter-spacing: .04em;
+  cursor: default; transition: border-color .15s, color .15s;
+}
+.dropZone.over { border-color: var(--accent); color: var(--accent); background: var(--accent-faint); }
 
 /* ---------- tabs / data bay ---------- */
 .bay { margin-top: 16px; }
@@ -727,6 +736,7 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
         <div class="monStatus" id="monStatus">Log monitor: initialising…</div>
         <div class="sysBtns">
           <button class="btn" data-action="pickFolder">Choose Gamelogs folder…</button>
+          <div class="dropZone" id="dropZone">or drag the Gamelogs folder here</div>
           <button class="btn" data-action="resumeFolder" id="btnResume" hidden>Resume folder access</button>
           <button class="btn" data-action="toggleOverlay" data-overlaybtn>Overlay ▶</button>
         </div>
@@ -840,8 +850,9 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
               <span class="mono">Documents\EVE\logs\Gamelogs</span>. This is how the companion sees NPCs:
               it only ever <b>reads</b> the log files EVE writes to disk. No memory reading, no game hooks,
               nothing that touches the client. You can change the folder any time under <b>Systems</b>.</p>
-            <p>Folder access and the floating overlay need a Chromium browser (Chrome / Edge / Opera GX)
-              opened directly on this file.</p>
+            <p>The floating always-on-top overlay requires Firefox 151+ or any Chromium browser (Chrome / Edge). For live NPC
+              log monitoring, Chrome and Edge use the folder picker; Firefox 111+ can drag the Gamelogs folder directly onto the
+              page for a live handle with the same real-time detection. You can change the folder any time under <b>Systems</b>.</p>
           </div>
 
           <div class="gSection">
@@ -912,9 +923,9 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
           <p>A free companion for Abyssal Deadspace runs. It reads your EVE Online game log files from disk to
             detect NPCs — no memory reading, no game hooks, no injection, no EVE API calls. Everything runs and
             stays on your machine: settings, history and your NPC dataset never leave this file.</p>
-          <p><b style="color:var(--text)">Requirements:</b> a Chromium browser (Chrome or Edge) opened directly on this file.
-            Folder access and the always-on-top overlay use the File System Access and Document Picture-in-Picture
-            APIs, which Firefox does not currently ship.</p>
+          <p><b style="color:var(--text)">Requirements:</b> any modern browser opened directly on this file — Chrome, Edge, or Firefox 151+.
+            The floating always-on-top overlay uses the Document Picture-in-Picture API, supported in Chromium and Firefox 151+.
+            Live NPC log monitoring uses the folder picker in Chrome/Edge; in Firefox 111+, drag the Gamelogs folder onto the page for the same real-time detection.</p>
           <div class="workLabel">Support the project</div>
           <ul class="linkList">
             <li><b>Ko-fi</b> <a href="https://ko-fi.com/jakkelsza" target="_blank" rel="noopener">ko-fi.com/jakkelsza</a></li>
@@ -1010,6 +1021,7 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
         <input type="text" id="wizFolderName" readonly placeholder="No folder selected">
         <button class="btn" data-action="pickFolder">Browse…</button>
       </div>
+      <div class="dropZone" id="wizDropZone" style="margin-top:8px">or drag the Gamelogs folder here</div>
       <p class="wizHint">Usually at <span style="font-family:var(--mono)">Documents\EVE\logs\Gamelogs</span>.
         You can also set this later under Systems.</p>
       <label class="togRow"><input type="checkbox" id="wizAuto" checked><span class="togBox"></span>Enable auto-detect NPCs from log</label>
@@ -1034,34 +1046,2018 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 <!-- ============ BUNDLED STARTER DATASET (schema-compatible with npc_dataset.json) ============ -->
 <script type="application/json" id="bundledDataset">
 [
- {"name":"Damavik","family":"Triglavian","class":"Frigate","threat":"Low","kill_priority":"Mid","notes":"Baseline Triglavian frigate. Ramping entropic disintegrator — damage climbs the longer it holds the same lock.","quick_handle":"Low threat. Clear after EWAR frigates.","is_boss":false,"overlay_tags":[]},
- {"name":"Striking Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Higher-damage Damavik variant.","quick_handle":"Clear early before the ramp stacks.","is_boss":false,"overlay_tags":[]},
- {"name":"Tangling Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Tackle variant — webs and warp scrambles. The one that gets you killed sitting at the gate.","quick_handle":"Kill first. Always.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
- {"name":"Blinding Damavik","family":"Triglavian","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Sensor dampening variant — eats your lock range and targeting speed.","quick_handle":"Early kill if your locks start failing.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Starving Damavik","family":"Triglavian","class":"Frigate","threat":"High","kill_priority":"First","notes":"Energy neutraliser variant — drains capacitor.","quick_handle":"First or second kill for any cap-hungry fit.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
- {"name":"Kikimora","family":"Triglavian","class":"Destroyer","threat":"High","kill_priority":"Early","notes":"Triglavian destroyer — heavy ramping damage for its size.","quick_handle":"Do not let it ramp. Kill early.","is_boss":false,"overlay_tags":[]},
- {"name":"Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Mid","notes":"Triglavian cruiser with a serious sustained ramp.","quick_handle":"Break its ramp — kill it or break its lock with range.","is_boss":false,"overlay_tags":[],"behavior":"Damage increases the longer it fires on one target."},
- {"name":"Striking Vedmak","family":"Triglavian","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite damage Vedmak.","quick_handle":"Priority target once tackle is down.","is_boss":false,"overlay_tags":[]},
- {"name":"Tangling Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Cruiser-class tackle — webs and scrams while the room shoots you.","quick_handle":"Kill with the tackle frigates, before the DPS.","is_boss":false,"overlay_tags":["Web","Scram"],"ewar":"Stasis webifier, warp scrambler"},
- {"name":"Blinding Vedmak","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"Early","notes":"Sensor dampening cruiser.","quick_handle":"Early kill — damps stack badly with range.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Starving Vedmak","family":"Triglavian","class":"Cruiser","threat":"Very High","kill_priority":"First","notes":"Heavy energy neutraliser pressure.","quick_handle":"Active-tank killer — put it down fast.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
- {"name":"Drekavac","family":"Triglavian","class":"Battlecruiser","threat":"Very High","kill_priority":"Mid","notes":"Heavy hitter. Respect the alpha and the ramp.","quick_handle":"Manage range; do not face-tank the ramp.","is_boss":false,"overlay_tags":[]},
- {"name":"Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Mid","notes":"Triglavian battleship — the longer it lives, the harder it hits. Boss rooms often anchor on a Leshak-class hull.","quick_handle":"Commit and break it, or stay out of its envelope.","is_boss":false,"overlay_tags":[],"behavior":"Ramping disintegrator; extreme damage if ignored."},
- {"name":"Starving Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"First","notes":"Battleship-class neut pressure that can flatline a cap chain.","quick_handle":"Kill before your booster runs dry.","is_boss":false,"overlay_tags":["Neut"],"ewar":"Energy neutraliser"},
- {"name":"Blinding Leshak","family":"Triglavian","class":"Battleship","threat":"Very High","kill_priority":"Early","notes":"Damping battleship — can lock you out of the fight entirely.","quick_handle":"Early kill or fight inside its damp floor.","is_boss":false,"overlay_tags":["Damp/Dis"],"ewar":"Remote sensor dampener"},
- {"name":"Rodiva","family":"Triglavian","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Triglavian logistics cruiser — remote repairs keep the room alive.","quick_handle":"Kill first or your DPS does nothing.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
- {"name":"Renewing Rodiva","family":"Triglavian","class":"Cruiser","threat":"High","kill_priority":"First","notes":"Stronger remote-repair Rodiva variant.","quick_handle":"First on the kill order, every time.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote armor repair"},
- {"name":"Lucid Firewatcher","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"Mid","notes":"Drifter line cruiser — steady omni damage.","quick_handle":"Standard clear once support is down.","is_boss":false,"overlay_tags":[]},
- {"name":"Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser","threat":"Medium","kill_priority":"First","notes":"Drifter logistics — chains remote reps across the spawn.","quick_handle":"Kill first; watch the rep chain swap.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
- {"name":"Arch Lucid Preserver","family":"Drifters/Seekers","class":"Cruiser (Elite)","threat":"High","kill_priority":"First","notes":"Elite Drifter logistics. Out-reps low DPS entirely.","quick_handle":"All damage here first.","is_boss":false,"overlay_tags":["Logi"],"ewar":"Remote repair"},
- {"name":"Karybdis Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss. Spawns 80km+ already kiting — send drones immediately or you will never close the gap before the timer eats you.","quick_handle":"Drones out the moment it lands. Do not chase it with the clock running.","is_boss":true,"overlay_tags":[],"behavior":"Kites at extreme range from spawn."},
- {"name":"Scylla Tyrannos","family":"Drifters/Seekers","class":"Battleship","threat":"Very High","kill_priority":"Last","notes":"Drifter battleship boss — heavy hits; manage range and transversal.","quick_handle":"Respect the alpha; keep speed up.","is_boss":true,"overlay_tags":[]},
- {"name":"Circadian Seeker","family":"Drifters/Seekers","class":"Cruiser","threat":"Low","kill_priority":"Last","notes":"Scout-class wanderer. Minor threat on its own.","quick_handle":"Clean up after real threats are down.","is_boss":false,"overlay_tags":[]},
- {"name":"Devoted Hunter","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate — area damage shreds drones and frigates at close range. A known killer in frigate-class Abyssals.","quick_handle":"Never let drones orbit it. Kill from range, first.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
- {"name":"Devoted Knight","family":"Sansha's Nation","class":"Frigate","threat":"High","kill_priority":"First","notes":"Smartbombing frigate, same family of pain as the Hunter.","quick_handle":"Range is life. Drones in bay until it is dead.","is_boss":false,"overlay_tags":[],"behavior":"Smartbomb area damage at close range."},
- {"name":"Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser","threat":"Very High","kill_priority":"Early","notes":"Destroys drones — pull them immediately when this lands on grid.","quick_handle":"Drones in bay first, then fight it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
- {"name":"Elite Lucifer Cynabal","family":"Angels (Lucifer)","class":"Cruiser (Elite)","threat":"Very High","kill_priority":"Early","notes":"Elite variant. Destroys drones — pull them immediately.","quick_handle":"Drones in bay. Do not test it.","is_boss":false,"overlay_tags":[],"behavior":"Actively targets and destroys drones."},
- {"name":"Lucifer Dramiel","family":"Angels (Lucifer)","class":"Frigate","threat":"Medium","kill_priority":"Early","notes":"Fast Angel frigate — hard to track when it is under your guns.","quick_handle":"Web it or out-fly it; do not chase.","is_boss":false,"overlay_tags":[]}
+ {
+  "name": "Bathyic Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Long range, poor tracking; lure with frigates  ·  Damage: Kinetic/Thermal (58/42)  ·  Weak to: Thermal/Explosive  ·  Tier 3",
+  "quick_handle": "Long range, poor tracking; lure with frigates.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range, poor tracking; lure with frigates",
+  "weak_to": "Thermal/Explosive",
+  "damage_dealt": "Kinetic/Thermal (58/42)"
+ },
+ {
+  "name": "Benthic Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Long range; web in Tier 5+  ·  Damage: Kinetic/Thermal (58/42)  ·  Weak to: Thermal/Explosive",
+  "quick_handle": "Long range; web in Tier 5+.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Long range; web in Tier 5+",
+  "weak_to": "Thermal/Explosive",
+  "damage_dealt": "Kinetic/Thermal (58/42)"
+ },
+ {
+  "name": "Endobenthic Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "Early",
+  "notes": "Extreme tank; timeout risk  ·  Damage: Kinetic/Thermal  ·  Weak to: Thermal/Explosive  ·  Tier 6 variant; high HP",
+  "quick_handle": "Extreme tank; timeout risk.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Extreme tank; timeout risk",
+  "weak_to": "Thermal/Explosive",
+  "damage_dealt": "Kinetic/Thermal"
+ },
+ {
+  "name": "Hadal Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Long range  ·  Damage: Kinetic/Thermal (58/42)  ·  Weak to: Thermal/Explosive  ·  Tier 4",
+  "quick_handle": "Long range.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range",
+  "weak_to": "Thermal/Explosive",
+  "damage_dealt": "Kinetic/Thermal (58/42)"
+ },
+ {
+  "name": "Photic Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Long range; poor tracking  ·  Damage: Kinetic/Thermal (63/37)  ·  Weak to: Thermal/Explosive  ·  Tier 1",
+  "quick_handle": "Long range; poor tracking.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range; poor tracking",
+  "weak_to": "Thermal/Explosive",
+  "damage_dealt": "Kinetic/Thermal (63/37)"
+ },
+ {
+  "name": "Twilit Abyssal Overmind",
+  "family": "Rogue Drones",
+  "class": "Battleship",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Long range  ·  Damage: Kinetic/Thermal (62/38)  ·  Weak to: Thermal/Explosive (high kin resist)  ·  Tier 2",
+  "quick_handle": "Long range.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range",
+  "weak_to": "Thermal/Explosive (high kin resist)",
+  "damage_dealt": "Kinetic/Thermal (62/38)"
+ },
+ {
+  "name": "Blastgrip Tessera",
+  "family": "Rogue Drones",
+  "class": "Battlecruiser",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Short range (2+4km), extreme DPS, pinpoint tracking  ·  Damage: Explosive (high)  ·  Weak to: Omni (60-70% resists)  ·  Kite beyond 15km",
+  "quick_handle": "Short range (2+4km), extreme DPS, pinpoint tracking.",
+  "is_boss": true,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Short range (2+4km), extreme DPS, pinpoint tracking",
+  "weak_to": "Omni (60-70% resists)",
+  "damage_dealt": "Explosive (high)"
+ },
+ {
+  "name": "Embergrip Tessera",
+  "family": "Rogue Drones",
+  "class": "Battlecruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Short range, high DPS  ·  Damage: Thermal  ·  Weak to: Omni",
+  "quick_handle": "Short range, high DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Short range, high DPS",
+  "weak_to": "Omni",
+  "damage_dealt": "Thermal"
+ },
+ {
+  "name": "Sparkgrip Tessera",
+  "family": "Rogue Drones",
+  "class": "Battlecruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Short range, high DPS  ·  Damage: EM  ·  Weak to: Omni",
+  "quick_handle": "Short range, high DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Short range, high DPS",
+  "weak_to": "Omni",
+  "damage_dealt": "EM"
+ },
+ {
+  "name": "Strikegrip Tessera",
+  "family": "Rogue Drones",
+  "class": "Battlecruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Short range, high DPS  ·  Damage: Kinetic  ·  Weak to: Omni",
+  "quick_handle": "Short range, high DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Short range, high DPS",
+  "weak_to": "Omni",
+  "damage_dealt": "Kinetic"
+ },
+ {
+  "name": "Blastlance Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Elite)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Higher damage frigate  ·  Damage: Explosive (50 DPS)  ·  Weak to: Variant-dependent",
+  "quick_handle": "Higher damage frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Higher damage frigate",
+  "weak_to": "Variant-dependent",
+  "damage_dealt": "Explosive (50 DPS)"
+ },
+ {
+  "name": "Emberlance Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Elite)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Higher damage  ·  Damage: Thermal (50 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Higher damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Higher damage",
+  "weak_to": "Variant",
+  "damage_dealt": "Thermal (50 DPS)"
+ },
+ {
+  "name": "Sparklance Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Elite)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Higher damage  ·  Damage: EM (50 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Higher damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Higher damage",
+  "weak_to": "Variant",
+  "damage_dealt": "EM (50 DPS)"
+ },
+ {
+  "name": "Strikelance Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Elite)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Higher damage  ·  Damage: Kinetic (50 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Higher damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Higher damage",
+  "weak_to": "Variant",
+  "damage_dealt": "Kinetic (50 DPS)"
+ },
+ {
+  "name": "Blastneedle Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Low damage; lure BS  ·  Damage: Explosive (25 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Low damage; lure BS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Low damage; lure BS",
+  "weak_to": "Variant",
+  "damage_dealt": "Explosive (25 DPS)"
+ },
+ {
+  "name": "Emberneedle Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Low damage  ·  Damage: Thermal (25 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Low damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Low damage",
+  "weak_to": "Variant",
+  "damage_dealt": "Thermal (25 DPS)"
+ },
+ {
+  "name": "Sparkneedle Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Low damage  ·  Damage: EM (25 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Low damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Low damage",
+  "weak_to": "Variant",
+  "damage_dealt": "EM (25 DPS)"
+ },
+ {
+  "name": "Strikeneedle Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Low damage  ·  Damage: Kinetic (25 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Low damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Low damage",
+  "weak_to": "Variant",
+  "damage_dealt": "Kinetic (25 DPS)"
+ },
+ {
+  "name": "Fieldweaver Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Logi)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Remote shield logi  ·  Damage: None  ·  Weak to: 0% resists",
+  "quick_handle": "Remote shield logi.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Shield Repair",
+  "behavior": "Remote shield logi",
+  "weak_to": "0% resists",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Plateforger Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (Logi)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Remote armor logi  ·  Damage: None  ·  Weak to: 0% resists",
+  "quick_handle": "Remote armor logi.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Armor Repair",
+  "behavior": "Remote armor logi",
+  "weak_to": "0% resists",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Fogcaster Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (EWAR)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Disruption frigate  ·  Damage: Omni (10 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Disruption frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking/Missile Disruption",
+  "behavior": "Disruption frigate",
+  "weak_to": "Variant",
+  "damage_dealt": "Omni (10 DPS)"
+ },
+ {
+  "name": "Gazedimmer Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (EWAR)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damp frigate  ·  Damage: Omni (10 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Damp frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Sensor Dampening",
+  "behavior": "Damp frigate",
+  "weak_to": "Variant",
+  "damage_dealt": "Omni (10 DPS)"
+ },
+ {
+  "name": "Snarecaster Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (EWAR)",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Webbing frigate  ·  Damage: Omni (10 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Webbing frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Webbing frigate",
+  "weak_to": "Variant",
+  "damage_dealt": "Omni (10 DPS)"
+ },
+ {
+  "name": "Spotlighter Tessella",
+  "family": "Rogue Drones",
+  "class": "Frigate (EWAR)",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Painter frigate  ·  Damage: Omni (10 DPS)  ·  Weak to: Variant",
+  "quick_handle": "Painter frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Painter frigate",
+  "weak_to": "Variant",
+  "damage_dealt": "Omni (10 DPS)"
+ },
+ {
+  "name": "Drifter Assault Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Kites to edge; hard-hitting | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (500 DPS)  ·  Weak to: Omni  ·  Tier 5",
+  "quick_handle": "Kites to edge; hard-hitting | Library reference only — combat log shows Karyb…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Kites to edge; hard-hitting | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (500 DPS)"
+ },
+ {
+  "name": "Drifter Foothold Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (100 DPS)  ·  Weak to: Omni  ·  Tier 1",
+  "quick_handle": "Long range | Library reference only — combat log shows Karybdis Tyrannos or S…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (100 DPS)"
+ },
+ {
+  "name": "Drifter Frontline Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (300 DPS)  ·  Weak to: Omni  ·  Tier 3",
+  "quick_handle": "Long range | Library reference only — combat log shows Karybdis Tyrannos or S…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (300 DPS)"
+ },
+ {
+  "name": "Drifter Rearguard Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (200 DPS)  ·  Weak to: Omni  ·  Tier 2",
+  "quick_handle": "Long range | Library reference only — combat log shows Karybdis Tyrannos or S…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (200 DPS)"
+ },
+ {
+  "name": "Drifter Vanguard Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "Mid",
+  "notes": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (400 DPS)  ·  Weak to: Omni  ·  Tier 4",
+  "quick_handle": "Long range | Library reference only — combat log shows Karybdis Tyrannos or S…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Long range | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (400 DPS)"
+ },
+ {
+  "name": "Battered Drifter Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Pre-damaged | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni  ·  Weak to: Omni  ·  Variant with initial damage",
+  "quick_handle": "Pre-damaged | Library reference only — combat log shows Karybdis Tyrannos or …",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pre-damaged | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Drifter Command Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Command variant | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni  ·  Weak to: Omni",
+  "quick_handle": "Command variant | Library reference only — combat log shows Karybdis Tyrannos…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Command variant | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Drifter Entanglement Cruiser",
+  "family": "Drifters/Seekers",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "EWAR + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (50 DPS)  ·  Weak to: Omni; large sig (400m)  ·  Pre-damaged",
+  "quick_handle": "EWAR + damage | Library reference only — combat log shows Karybdis Tyrannos o…",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "EWAR + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni; large sig (400m)",
+  "damage_dealt": "Omni (50 DPS)"
+ },
+ {
+  "name": "Drifter Nullcharge Cruiser",
+  "family": "Drifters/Seekers",
+  "class": "Cruiser",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Neuts + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (50 DPS)  ·  Weak to: Omni",
+  "quick_handle": "Neuts + damage | Library reference only — combat log shows Karybdis Tyrannos …",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neuts + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (50 DPS)"
+ },
+ {
+  "name": "Drifter Nullwarp Cruiser",
+  "family": "Drifters/Seekers",
+  "class": "Cruiser",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scrams + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni (50 DPS)  ·  Weak to: Omni",
+  "quick_handle": "Scrams + damage | Library reference only — combat log shows Karybdis Tyrannos…",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Scrams + damage | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (50 DPS)"
+ },
+ {
+  "name": "Ephialtes Confuser",
+  "family": "Drifters/Seekers",
+  "class": "Seeker (Cruiser)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Disruption seeker  ·  Damage: Omni  ·  Weak to: Thin armor (10% omni resists)",
+  "quick_handle": "Disruption seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking/Missile Disruption",
+  "behavior": "Disruption seeker",
+  "weak_to": "Thin armor (10% omni resists)",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Dissipator",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "High",
+  "kill_priority": "First",
+  "notes": "Neut seeker  ·  Damage: Omni  ·  Weak to: Thin armor",
+  "quick_handle": "Neut seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut seeker",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Entangler",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Web seeker  ·  Damage: Omni  ·  Weak to: Thin armor",
+  "quick_handle": "Web seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web seeker",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Illuminator",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Painter seeker  ·  Damage: Omni  ·  Weak to: Thin armor",
+  "quick_handle": "Painter seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Painter seeker",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Lancer",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Damage dealer; lure BS  ·  Damage: Omni  ·  Weak to: Thin armor",
+  "quick_handle": "Damage dealer; lure BS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage dealer; lure BS",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Obfuscator",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damp seeker  ·  Damage: Omni  ·  Weak to: Thin armor",
+  "quick_handle": "Damp seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Sensor Dampening",
+  "behavior": "Damp seeker",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ephialtes Spearfisher",
+  "family": "Drifters/Seekers",
+  "class": "Seeker",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scram seeker  ·  Damage: Omni (25% each)  ·  Weak to: Thin armor",
+  "quick_handle": "Scram seeker.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Scram seeker",
+  "weak_to": "Thin armor",
+  "damage_dealt": "Omni (25% each)"
+ },
+ {
+  "name": "Impaired Drifter Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Impaired variant | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.  ·  Damage: Omni  ·  Weak to: Omni",
+  "quick_handle": "Impaired variant | Library reference only — combat log shows Karybdis Tyranno…",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Impaired variant | Library reference only — combat log shows Karybdis Tyrannos or Scylla Tyrannos.",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Karybdis Tyrannos",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "First",
+  "notes": "Spawns at 50% HP already kiting — can be 80km+ from entry point immediately. Send drones the moment you land or it escapes range entirely. No EWAR. Dies fast if you catch it early. Every second it lives wastes time and gate distance.  ·  Damage: Omni  ·  Weak to: EM  ·  Tier-dependent HP/DPS. This is the name all Drifter battleships use in combat log.",
+  "quick_handle": "Spawns at 50% HP already kiting — can be 80km+ from entry point immediately.",
+  "is_boss": true,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Spawns at 50% HP already kiting — can be 80km+ from entry point immediately. Send drones the moment you land or it escapes range entirely. No EWAR. Dies fast if you catch it early. Every second it lives wastes time and gate distance.",
+  "weak_to": "EM",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Scylla Tyrannos",
+  "family": "Drifters/Seekers",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "EWAR varies by subtype — check Type column in overview. Nullwarp: scram (kill First). Nullcharge: neut (kill First). Entanglement: web (kill Early). COMBAT LOG NAME for all Drifter cruisers.  ·  Damage: Omni  ·  Weak to: EM  ·  Generic entry — all Drifter cruisers appear as Scylla Tyrannos in combat log. Priority depends on subtype.",
+  "quick_handle": "EWAR varies by subtype — check Type column in overview.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Varies: Scram/Neut/Web by subtype",
+  "behavior": "EWAR varies by subtype — check Type column in overview. Nullwarp: scram (kill First). Nullcharge: neut (kill First). Entanglement: web (kill Early). COMBAT LOG NAME for all Drifter cruisers.",
+  "weak_to": "EM",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Ruptured Drifter Battleship",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damaged Drifter Battleship variant; reduced HP.  ·  Damage: Omni  ·  Weak to: EM  ·  Stats need live testing.",
+  "quick_handle": "Damaged Drifter Battleship variant; reduced HP.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damaged Drifter Battleship variant; reduced HP.",
+  "weak_to": "EM",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Tyrannos Typhon",
+  "family": "Drifters/Seekers",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Cradle of War addition (June 9, 2026). Kites at 300m/s like Karybdis. Super weapon disabled; automated defenses active. 60km optimal. Stats are early-data placeholders — verify after expansion launch.  ·  Damage: Omni  ·  Weak to: EM  ·  Placeholder stats from SDE pre-launch. Update after June 9, 2026.",
+  "quick_handle": "Cradle of War addition (June 9, 2026).",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Cradle of War addition (June 9, 2026). Kites at 300m/s like Karybdis. Super weapon disabled; automated defenses active. 60km optimal. Stats are early-data placeholders — verify after expansion launch.",
+  "weak_to": "EM",
+  "damage_dealt": "Omni"
+ },
+ {
+  "name": "Lucid Deepwatcher",
+  "family": "Sleepers (Lucid)",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "Last",
+  "notes": "High tank; timeout killer. Starts 50% armor, 65% structure  ·  Damage: EM/Thermal + Kin/Exp missiles  ·  Weak to: Poor tracking  ·  Solo in T1-2, pairs T3-4, trios T5-6",
+  "quick_handle": "High tank; timeout killer.",
+  "is_boss": true,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "High tank; timeout killer. Starts 50% armor, 65% structure",
+  "weak_to": "Poor tracking",
+  "damage_dealt": "EM/Thermal + Kin/Exp missiles"
+ },
+ {
+  "name": "Lucid Sentinel",
+  "family": "Sleepers (Lucid)",
+  "class": "Cruiser",
+  "threat": "Very High",
+  "kill_priority": "Early",
+  "notes": "Neut cruiser; good tracking  ·  Damage: None/Generic  ·  Weak to: Not specified",
+  "quick_handle": "Neut cruiser; good tracking.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut cruiser; good tracking",
+  "weak_to": "Not specified",
+  "damage_dealt": "None/Generic"
+ },
+ {
+  "name": "Lucid Upholder",
+  "family": "Sleepers (Lucid)",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Web cruiser; good tracking  ·  Damage: None/Generic  ·  Weak to: Not specified",
+  "quick_handle": "Web cruiser; good tracking.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web cruiser; good tracking",
+  "weak_to": "Not specified",
+  "damage_dealt": "None/Generic"
+ },
+ {
+  "name": "Lucid Watchman",
+  "family": "Sleepers (Lucid)",
+  "class": "Cruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damage cruiser; high tracking/range  ·  Damage: Generic  ·  Weak to: Not specified",
+  "quick_handle": "Damage cruiser; high tracking/range.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking Disruption",
+  "behavior": "Damage cruiser; high tracking/range",
+  "weak_to": "Not specified",
+  "damage_dealt": "Generic"
+ },
+ {
+  "name": "Lucid Aegis",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Early",
+  "notes": "High damage frigate; remote reps  ·  Damage: Higher  ·  Weak to: Not specified",
+  "quick_handle": "High damage frigate; remote reps.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "",
+  "behavior": "High damage frigate; remote reps",
+  "weak_to": "Not specified",
+  "damage_dealt": "Higher"
+ },
+ {
+  "name": "Lucid Escort",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Early",
+  "notes": "Damage frigate; remote reps  ·  Damage: Generic  ·  Weak to: Not specified",
+  "quick_handle": "Damage frigate; remote reps.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "",
+  "behavior": "Damage frigate; remote reps",
+  "weak_to": "Not specified",
+  "damage_dealt": "Generic"
+ },
+ {
+  "name": "Lucid Firewatcher",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "High",
+  "kill_priority": "First",
+  "notes": "Neut frigate; remote reps  ·  Damage: None  ·  Weak to: Not specified",
+  "quick_handle": "Neut frigate; remote reps.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut",
+   "Logi"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut frigate; remote reps",
+  "weak_to": "Not specified",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Lucid Preserver",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Strong remote reps  ·  Damage: None  ·  Weak to: Not specified",
+  "quick_handle": "Strong remote reps.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Shield Repair",
+  "behavior": "Strong remote reps",
+  "weak_to": "Not specified",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Lucid Warden",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Early",
+  "notes": "Web frigate; remote reps  ·  Damage: None  ·  Weak to: Not specified",
+  "quick_handle": "Web frigate; remote reps.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web",
+   "Logi"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web frigate; remote reps",
+  "weak_to": "Not specified",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Awoken Preserver",
+  "family": "Sleepers (Lucid)",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Logi variant  ·  Damage: None  ·  Weak to: Not specified",
+  "quick_handle": "Logi variant.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Shield Repair",
+  "behavior": "Logi variant",
+  "weak_to": "Not specified",
+  "damage_dealt": "None"
+ },
+ {
+  "name": "Anchoring Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scram + damage; fast speed  ·  Damage: Th/Exp (initial 30, max 60)  ·  Weak to: Exp/Th",
+  "quick_handle": "Scram + damage; fast speed.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Scram + damage; fast speed",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (initial 30, max 60)"
+ },
+ {
+  "name": "Anchoring Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Drone spawner; slower ramp (1%/cycle, max 150%)  ·  Damage: Th/Exp (initial 8, max 20)  ·  Weak to: Exp/Th  ·  Swarmers die with ship",
+  "quick_handle": "Drone spawner; slower ramp (1%/cycle, max 150%).",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Drone spawner; slower ramp (1%/cycle, max 150%)",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (initial 8, max 20)"
+ },
+ {
+  "name": "Blinding Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Damp + damage; strong tank/RR  ·  Damage: Th/Exp (initial 123.2, max 356.4)  ·  Weak to: Exp/Th",
+  "quick_handle": "Damp + damage; strong tank/RR.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Sensor Dampening",
+  "behavior": "Damp + damage; strong tank/RR",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (initial 123.2, max 356.4)"
+ },
+ {
+  "name": "Blinding Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Drone spawner  ·  Damage: Th/Exp (low)  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Sensor Dampening",
+  "behavior": "Drone spawner",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (low)"
+ },
+ {
+  "name": "Ghosting Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Disruption + damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Disruption + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking Disruption",
+  "behavior": "Disruption + damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Ghosting Kikimora",
+  "family": "Triglavian",
+  "class": "Destroyer",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "High DPS; dangerous in T1  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "High DPS; dangerous in T1.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking Disruption",
+  "behavior": "High DPS; dangerous in T1",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Ghosting Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Drone spawner  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Damp/Dis"
+  ],
+  "ewar": "Tracking Disruption",
+  "behavior": "Drone spawner",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Harrowing Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Painter + damage; ramps fast  ·  Damage: Th/Exp (initial 198, max 396)  ·  Weak to: Exp/Th",
+  "quick_handle": "Painter + damage; ramps fast.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Painter + damage; ramps fast",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (initial 198, max 396)"
+ },
+ {
+  "name": "Harrowing Vila Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser (Drone)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Drone spawner; slower ramp  ·  Damage: Th/Exp (initial 79.2, max 198)  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner; slower ramp.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Drone spawner; slower ramp",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp (initial 79.2, max 198)"
+ },
+ {
+  "name": "Impaired Blitzing Kikimora",
+  "family": "Triglavian",
+  "class": "Destroyer",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Impaired variant  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Impaired variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Impaired variant",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Renewing Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Logi + damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Logi + damage.",
+  "is_boss": true,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Armor Repair (dual)",
+  "behavior": "Logi + damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Renewing Rodiva",
+  "family": "Triglavian",
+  "class": "Battlecruiser (Logi)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Strong logi  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Strong logi.",
+  "is_boss": true,
+  "overlay_tags": [
+   "Logi"
+  ],
+  "ewar": "Remote Armor Repair",
+  "behavior": "Strong logi",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Shining Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Variant  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Shining Drekavac",
+  "family": "Triglavian",
+  "class": "Battlecruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "High DPS  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "High DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "High DPS",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Shining Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Variant  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Shining Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Drone spawner  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Drone spawner",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Starving Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Neut + damage; no RR  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Neut + damage; no RR.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer (heavy)",
+  "behavior": "Neut + damage; no RR",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Starving Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Neut + damage; no RR  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Neut + damage; no RR.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut + damage; no RR",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Starving Vila Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser (Drone)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Neut + drones; no RR  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Neut + drones; no RR.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut + drones; no RR",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Generic damage; fast  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Generic damage; fast.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Generic damage; fast",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Drekavac",
+  "family": "Triglavian",
+  "class": "Battlecruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damage dealer  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Damage dealer.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage dealer",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Kikimora",
+  "family": "Triglavian",
+  "class": "Destroyer",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "High DPS/tank; dangerous  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "High DPS/tank; dangerous.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "High DPS/tank; dangerous",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Generic damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Generic damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Generic damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Generic; higher DPS than Leshak  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Generic; higher DPS than Leshak.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Generic; higher DPS than Leshak",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Drone spawner  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Drone spawner",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Striking Vila Vedmak",
+  "family": "Triglavian",
+  "class": "Cruiser (Drone)",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Drone spawner  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Drone spawner.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Drone spawner",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Tangling Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Web + damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Web + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web + damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Tangling Kikimora",
+  "family": "Triglavian",
+  "class": "Destroyer",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Web + damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Web + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web + damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Tangling Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Web + damage  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Web + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web + damage",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Tangling Vila Damavik",
+  "family": "Triglavian",
+  "class": "Frigate (Drone)",
+  "threat": "Medium",
+  "kill_priority": "Early",
+  "notes": "Web + drones  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Web + drones.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Web"
+  ],
+  "ewar": "Stasis Web",
+  "behavior": "Web + drones",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Warding Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Variant; more hull DPS  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Variant; more hull DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant; more hull DPS",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Battered Shackling Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Pre-damaged  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Pre-damaged.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pre-damaged",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Dievas Shackling Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Shackling variant  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Shackling variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Shackling variant",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Impaired Shackling Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Impaired  ·  Damage: Th/Exp  ·  Weak to: Exp/Th",
+  "quick_handle": "Impaired.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Impaired",
+  "weak_to": "Exp/Th",
+  "damage_dealt": "Th/Exp"
+ },
+ {
+  "name": "Vila Swarmer",
+  "family": "Triglavian",
+  "class": "Drone",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Harmless; ignore often  ·  Damage: Omni (low)  ·  Weak to: Omni  ·  Spawned by Vila ships",
+  "quick_handle": "Harmless; ignore often.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Harmless; ignore often",
+  "weak_to": "Omni",
+  "damage_dealt": "Omni (low)"
+ },
+ {
+  "name": "Starving Damavik",
+  "family": "Triglavian",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Heavy close-range neut; very fast (2700 m/s); ramping disintegrator damage. Will drain cap before you can kill it if ignored.  ·  Damage: Thermal/Explosive (69/31)  ·  Weak to: Explosive  ·  Confirmed from EVE Ref SDE.",
+  "quick_handle": "Heavy close-range neut; very fast (2700 m/s); ramping disintegrator damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer (heavy, 34 GJ/cycle)",
+  "behavior": "Heavy close-range neut; very fast (2700 m/s); ramping disintegrator damage. Will drain cap before you can kill it if ignored.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Thermal/Explosive (69/31)"
+ },
+ {
+  "name": "Ruptured Shackling Leshak",
+  "family": "Triglavian",
+  "class": "Battleship",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damaged Shackling Leshak variant; reduced HP.  ·  Damage: Thermal/Explosive  ·  Weak to: Explosive  ·  Stats need live testing.",
+  "quick_handle": "Damaged Shackling Leshak variant; reduced HP.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damaged Shackling Leshak variant; reduced HP.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Thermal/Explosive"
+ },
+ {
+  "name": "Arrester Marshal Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scram + high DPS  ·  Damage: Mixed  ·  Weak to: Kin/Th  ·  Pre-damaged: no shield, 28% armor",
+  "quick_handle": "Scram + high DPS.",
+  "is_boss": true,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Scram + high DPS",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Arrester Pacifier Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scram + damage  ·  Damage: Variant  ·  Weak to: Kin/Th",
+  "quick_handle": "Scram + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram"
+  ],
+  "ewar": "Warp Scrambler",
+  "behavior": "Scram + damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Variant"
+ },
+ {
+  "name": "Assault Enforcer Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Cruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damage dealer  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Damage dealer.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage dealer",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Attacker Marshal Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "High DPS vs slow ships; keep moving  ·  Damage: High (427 DPS heavy missiles)  ·  Weak to: Kin/Th  ·  Pre-damaged",
+  "quick_handle": "High DPS vs slow ships; keep moving.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "High DPS vs slow ships; keep moving",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "High (427 DPS heavy missiles)"
+ },
+ {
+  "name": "Attacker Pacifier Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "High DPS in numbers  ·  Damage: Variant (Spark/Ember/Strike/Blast)  ·  Weak to: Kin/Th",
+  "quick_handle": "High DPS in numbers.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "High DPS in numbers",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Variant (Spark/Ember/Strike/Blast)"
+ },
+ {
+  "name": "Drainer Enforcer Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "First",
+  "notes": "Neut + damage  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Neut + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut + damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Drainer Marshal Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Battleship",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Neut + high DPS  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Neut + high DPS.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut + high DPS",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Drainer Pacifier Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Frigate",
+  "threat": "Medium",
+  "kill_priority": "Early",
+  "notes": "Neut + damage  ·  Damage: Variant  ·  Weak to: Kin/Th",
+  "quick_handle": "Neut + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut + damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Variant"
+ },
+ {
+  "name": "Marker Pacifier Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Mid",
+  "notes": "Painter + damage  ·  Damage: Variant  ·  Weak to: Kin/Th",
+  "quick_handle": "Painter + damage.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Painter + damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Variant"
+ },
+ {
+  "name": "Skybreaker Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Damage dealer; keep moving  ·  Damage: Thermal rockets (Explosive for Arrester)  ·  Weak to: Kin/Th",
+  "quick_handle": "Damage dealer; keep moving.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage dealer; keep moving",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Thermal rockets (Explosive for Arrester)"
+ },
+ {
+  "name": "Stormbringer Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Cruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Damage  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Damage.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Thunderchild Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Battleship",
+  "threat": "High",
+  "kill_priority": "Mid",
+  "notes": "Damage  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Damage.",
+  "is_boss": true,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Damage",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Edencom Battleship placeholder",
+  "family": "EDENCOM/CONCORD",
+  "class": "Battleship",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Placeholder  ·  Damage: Mixed  ·  Weak to: Kin/Th",
+  "quick_handle": "Placeholder.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Placeholder",
+  "weak_to": "Kin/Th",
+  "damage_dealt": "Mixed"
+ },
+ {
+  "name": "Marker Enforcer Disparu Troop",
+  "family": "EDENCOM/CONCORD",
+  "class": "Cruiser",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Painter cruiser; makes you easier to hit by other EDENCOM ships.  ·  Damage: EM/Thermal  ·  Weak to: Thermal  ·  Stats need live testing.",
+  "quick_handle": "Painter cruiser; makes you easier to hit by other EDENCOM ships.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Paint"
+  ],
+  "ewar": "Target Painting",
+  "behavior": "Painter cruiser; makes you easier to hit by other EDENCOM ships.",
+  "weak_to": "Thermal",
+  "damage_dealt": "EM/Thermal"
+ },
+ {
+  "name": "Elite Lucifer Cynabal",
+  "family": "Angels (Lucifer)",
+  "class": "Cruiser (Elite)",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Boss. Actively targets and destroys drones — pull drones immediately or lose them. Heavy neut + web. Highest priority in Angel room.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Boss.",
+  "is_boss": true,
+  "overlay_tags": [
+   "Neut",
+   "Web"
+  ],
+  "ewar": "Energy Neutralizer + Stasis Web",
+  "behavior": "Boss. Actively targets and destroys drones — pull drones immediately or lose them. Heavy neut + web. Highest priority in Angel room.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Elite Lucifer Dramiel",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate (Elite)",
+  "threat": "Medium",
+  "kill_priority": "Mid",
+  "notes": "Fast tackle frigate. No drone aggression but dangerous in groups.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Fast tackle frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Fast tackle frigate. No drone aggression but dangerous in groups.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Burst",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Pure DPS frigate. Last.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Pure DPS frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pure DPS frigate. Last.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Cynabal",
+  "family": "Angels (Lucifer)",
+  "class": "Cruiser",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Also targets drones aggressively. Neut + web. Kill early to protect your drone bay.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Also targets drones aggressively.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut",
+   "Web"
+  ],
+  "ewar": "Energy Neutralizer + Stasis Web",
+  "behavior": "Also targets drones aggressively. Neut + web. Kill early to protect your drone bay.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Dramiel",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Pure DPS frigate. Last.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Pure DPS frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pure DPS frigate. Last.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Echo",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "Scram + web frigate. Pins you in place. Kill first to restore mobility.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Scram + web frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Scram",
+   "Web"
+  ],
+  "ewar": "Warp Scrambler + Stasis Web",
+  "behavior": "Scram + web frigate. Pins you in place. Kill first to restore mobility.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Fury",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "High",
+  "kill_priority": "First",
+  "notes": "Neut frigate. Drains cap at close range.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Neut frigate.",
+  "is_boss": false,
+  "overlay_tags": [
+   "Neut"
+  ],
+  "ewar": "Energy Neutralizer",
+  "behavior": "Neut frigate. Drains cap at close range.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Ixion",
+  "family": "Angels (Lucifer)",
+  "class": "Cruiser",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Easy cruiser. Low threat.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Easy cruiser.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Easy cruiser. Low threat.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Medusa",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Pure DPS frigate. Low priority.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Pure DPS frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pure DPS frigate. Low priority.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Lucifer Swordspine",
+  "family": "Angels (Lucifer)",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Pure DPS frigate. Low priority.  ·  Damage: Exp/Kin  ·  Weak to: Explosive",
+  "quick_handle": "Pure DPS frigate.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Pure DPS frigate. Low priority.",
+  "weak_to": "Explosive",
+  "damage_dealt": "Exp/Kin"
+ },
+ {
+  "name": "Devoted Fisher",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Herald",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Hunter",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "High",
+  "kill_priority": "Early",
+  "notes": "Dangerous in T0; high DPS  ·  Damage: EM/Th (high)  ·  Weak to: EM",
+  "quick_handle": "Dangerous in T0; high DPS.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Dangerous in T0; high DPS",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th (high)"
+ },
+ {
+  "name": "Devoted Knight",
+  "family": "Sansha's Nation",
+  "class": "Cruiser",
+  "threat": "Very High",
+  "kill_priority": "First",
+  "notes": "High DPS web/neut  ·  Damage: EM/Th (high)  ·  Weak to: EM",
+  "quick_handle": "High DPS web/neut.",
+  "is_boss": true,
+  "overlay_tags": [
+   "Neut",
+   "Scram"
+  ],
+  "ewar": "Energy Neutralizer + Stasis Web",
+  "behavior": "High DPS web/neut",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th (high)"
+ },
+ {
+  "name": "Devoted Lookout",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Priest",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Smith",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Torchbearer",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ },
+ {
+  "name": "Devoted Trapper",
+  "family": "Sansha's Nation",
+  "class": "Frigate",
+  "threat": "Low",
+  "kill_priority": "Last",
+  "notes": "Variant  ·  Damage: EM/Th  ·  Weak to: EM",
+  "quick_handle": "Variant.",
+  "is_boss": false,
+  "overlay_tags": [],
+  "ewar": "",
+  "behavior": "Variant",
+  "weak_to": "EM",
+  "damage_dealt": "EM/Th"
+ }
 ]
 </script>
 
@@ -1650,9 +3646,82 @@ function renderChips(){ qa('.chips').forEach(buildChipsInto); }
 
 /* ---------------- log monitor ---------------- */
 const FS_OK = typeof window.showDirectoryPicker === 'function';
+/* Firefox 111+: FileSystemDirectoryHandle is available via drag-and-drop
+   even without showDirectoryPicker. DataTransferItem.getAsFileSystemHandle()
+   returns a live handle that the normal poll loop can use directly. */
+const DND_HANDLE_OK = typeof DataTransferItem !== 'undefined' &&
+  typeof DataTransferItem.prototype.getAsFileSystemHandle === 'function';
+/* Last-resort Firefox fallback: webkitdirectory snapshot */
+const DIR_INPUT_OK = !FS_OK && (function(){ const i = document.createElement('input'); i.type='file'; return 'webkitdirectory' in i; })();
+/* webkitdirectory snapshot state (only used when DnD handle not available) */
+let ffFiles = [];
+let ffFileIdx = {};
+
+/* Wire drag-and-drop folder zones — works in Firefox 111+ and Chrome */
+function wireDropZones(){
+  const zones = [document.getElementById('dropZone'), document.getElementById('wizDropZone')];
+  zones.forEach(zone => {
+    if (!zone) return;
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      zone.classList.add('over');
+    });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', async e => {
+      e.preventDefault();
+      zone.classList.remove('over');
+      await handleFolderDrop(e.dataTransfer);
+    });
+  });
+}
+
+async function handleFolderDrop(dataTransfer){
+  if (!dataTransfer) return;
+  const items = Array.from(dataTransfer.items || []);
+  // Try FileSystemHandle path first (Firefox 111+ and Chrome)
+  if (DND_HANDLE_OK){
+    for (const item of items){
+      if (item.kind !== 'file') continue;
+      try {
+        const handle = await item.getAsFileSystemHandle();
+        if (handle && handle.kind === 'directory'){
+          await monitor.adopt(handle);
+          const w = $('#wizFolderName'); if (w) w.value = handle.name;
+          toast('Gamelogs folder set: ' + handle.name, 'good');
+          if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+          return;
+        }
+      } catch(e){ /* item not a file system handle, try next */ }
+    }
+  }
+  // Fallback: webkitdirectory-style File[] from dataTransfer.items
+  const files = [];
+  for (const item of items){
+    if (item.kind !== 'file') continue;
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    if (entry && entry.isDirectory){
+      // Can't enumerate directory entries from DnD without File and Directory Entries API
+      // Fall through to file-level drop
+    }
+    const f = item.getAsFile();
+    if (f) files.push(f);
+  }
+  if (files.length){
+    ffFiles = files;
+    ffFileIdx = {};
+    files.forEach(f => { ffFileIdx[f.name] = f; });
+    monitor.ffName = 'dropped files';
+    const w = $('#wizFolderName'); if (w) w.value = monitor.ffName;
+    await monitor.ffScan(true);
+    renderMon();
+    toast('Files loaded: ' + files.length, 'good');
+    if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+  }
+}
 const monitor = {
   dir: null, fileHandle: null, fileName: '', size: 0, enc: null,
   active: false, pollId: 0, scanId: 0, lastErr: '', permission: 'none',
+  ffName: '',   // Firefox: friendly folder name derived from webkitRelativePath
 
   async adopt(handle){
     this.dir = handle; this.permission = 'granted'; this.lastErr = '';
@@ -1660,6 +3729,7 @@ const monitor = {
     renderMon();
   },
   async restore(){
+    if (!FS_OK) { renderMon(); return; }  // Firefox: no IDB handle to restore
     const h = await idb.get('logDir');
     if (!h) { renderMon(); return; }
     this.dir = h;
@@ -1680,18 +3750,47 @@ const monitor = {
   },
   async start(){
     if (this.active || !config.autoDetect) { renderMon(); return; }
-    if (!this.dir || this.permission !== 'granted'){ renderMon(); return; }
-    this.active = true;
-    this.fileHandle = null; this.fileName = ''; this.size = 0; this.enc = null;
-    await this.scan(true);                       // tail from end — old log text is stale
-    this.pollId = setInterval(() => this.poll(), 350);
-    this.scanId = setInterval(() => this.scan(false), 4000);
+    // Real handle available (Chrome picker OR Firefox DnD) — use live poll path
+    if (this.dir && this.permission === 'granted'){
+      this.active = true;
+      this.fileHandle = null; this.fileName = ''; this.size = 0; this.enc = null;
+      await this.scan(true);                       // tail from end — old log text is stale
+      this.pollId = setInterval(() => this.poll(), 350);
+      this.scanId = setInterval(() => this.scan(false), 4000);
+      renderMon();
+      return;
+    }
+    // Last-resort: webkitdirectory snapshot (no live handle, no picker)
+    if (DIR_INPUT_OK && ffFiles.length){
+      this.active = true;
+      await this.ffScan(true);
+      this.pollId = setInterval(() => this.ffScan(false), 2000);
+      renderMon();
+      return;
+    }
     renderMon();
   },
   stop(){
     if (!this.active) return;
     this.active = false;
     clearInterval(this.pollId); clearInterval(this.scanId);
+    renderMon();
+  },
+  /* Firefox: pick the newest .txt from the in-memory File[] array and scan it */
+  async ffScan(fromEnd){
+    if (!ffFiles.length) return;
+    try {
+      const txts = ffFiles.filter(f => f.name.toLowerCase().endsWith('.txt'));
+      if (!txts.length) return;
+      const newest = txts.reduce((a, b) => (b.lastModified > a.lastModified ? b : a));
+      const text = await newest.text();
+      const lines = text.split(/\r?\n/);
+      // fromEnd: only scan last 200 lines to avoid replaying old combat
+      const slice = fromEnd ? lines.slice(-200).join('\n') : text;
+      this.fileName = newest.name;
+      const hits = extractDetections(slice, resolver, seen);
+      if (hits.length) addDetections(hits);
+    } catch(e){ /* file read error, silently skip */ }
     renderMon();
   },
   async scan(fromEnd){
@@ -1742,39 +3841,84 @@ function renderMon(){
   const m = $('#monStatus');
   if (!m) return;
   const lines = [];
-  if (!FS_OK){
-    lines.push('<span class="err">Folder access is unavailable in this context.</span>');
-    lines.push('Open this file directly in Chrome or Edge to enable log detection.');
-  } else {
-    lines.push('Folder: <b>' + (monitor.dir ? esc(monitor.dir.name) : 'not selected') + '</b>');
+  const hasHandle = monitor.dir && monitor.permission === 'granted';
+  if (hasHandle){
+    // Live mode: real FileSystemDirectoryHandle (Chrome picker or Firefox DnD)
+    lines.push('Folder: <b>' + esc(monitor.dir.name) + '</b>');
     if (monitor.permission === 'prompt') lines.push('<span class="err">Access needs to be re-confirmed.</span>');
     lines.push('Watching: <b>' + (monitor.fileName ? esc(monitor.fileName) : '—') + '</b>');
     const state = !config.autoDetect ? 'off'
       : monitor.active ? '<span class="ok">ACTIVE</span>'
-      : (monitor.dir && monitor.permission === 'granted') ? 'armed — starts with the run'
-      : 'waiting for folder';
+      : 'armed — starts with the run';
     lines.push('Monitor: ' + state + ' · Detected this room: <b>' + detected.length + '</b>');
     if (monitor.lastErr) lines.push('<span class="err">' + esc(monitor.lastErr) + '</span>');
+  } else if (ffFiles.length){
+    // Snapshot mode: webkitdirectory File[] (no live updates)
+    lines.push('Folder: <b>' + esc(monitor.ffName || 'selected') + '</b>');
+    lines.push('Files loaded: <b>' + ffFiles.length + '</b> · Watching: <b>' + (monitor.fileName || '—') + '</b>');
+    const state = !config.autoDetect ? 'off'
+      : monitor.active ? '<span class="ok">ACTIVE (snapshot — no live updates)</span>'
+      : 'armed — starts with the run';
+    lines.push('Monitor: ' + state + ' · Detected this room: <b>' + detected.length + '</b>');
+    lines.push('<span class="err">Live monitoring unavailable — drag the folder onto this page for real-time detection.</span>');
+  } else if (!FS_OK && !DND_HANDLE_OK && !DIR_INPUT_OK){
+    lines.push('<span class="err">Folder access is unavailable in this context.</span>');
+    lines.push('Open this file directly in Chrome, Edge, or Firefox to enable log detection.');
+  } else {
+    // Nothing selected yet
+    const hint = FS_OK
+      ? 'Click "Choose Gamelogs folder…" or drag the folder here.'
+      : DND_HANDLE_OK
+        ? '<span class="ok">Drag the Gamelogs folder onto this page for live monitoring.</span> Or use the file picker for a snapshot.'
+        : 'Click "Choose Gamelogs folder…" or drag the folder here.';
+    lines.push('Folder: <b>not selected</b>');
+    lines.push(hint);
   }
   m.innerHTML = lines.join('<br>');
   const r = $('#btnResume');
-  if (r) r.hidden = !(FS_OK && monitor.dir && monitor.permission === 'prompt');
+  if (r) r.hidden = !(monitor.dir && monitor.permission === 'prompt');
   const ds = datasetMeta.count + ' NPCs · ' + (datasetMeta.source === 'bundled' ? 'bundled starter set' : esc(datasetMeta.name));
   const i = $('#dsInfo'); if (i) i.innerHTML = ds;
   const a = $('#aboutDs'); if (a) a.innerHTML = 'Currently loaded: ' + ds + '.';
 }
 
 async function pickFolder(){
-  if (!FS_OK){ toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn'); return; }
-  try {
-    const h = await window.showDirectoryPicker({ id: 'eveGamelogs', mode: 'read' });
-    await monitor.adopt(h);
-    const w = $('#wizFolderName'); if (w) w.value = h.name;
-    toast('Gamelogs folder set: ' + h.name, 'good');
-    if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
-  } catch(e){
-    if (e && e.name === 'AbortError') return;
-    toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn');
+  if (FS_OK){
+    try {
+      const h = await window.showDirectoryPicker({ id: 'eveGamelogs', mode: 'read' });
+      await monitor.adopt(h);
+      const w = $('#wizFolderName'); if (w) w.value = h.name;
+      toast('Gamelogs folder set: ' + h.name, 'good');
+      if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+    } catch(e){
+      if (e && e.name === 'AbortError') return;
+      toast('Folder access is blocked here — open this file directly in Chrome or Edge.', 'warn');
+    }
+  } else if (DIR_INPUT_OK){
+    // Firefox: use a hidden <input webkitdirectory> to load all files from the folder
+    const inp = el('input', { type: 'file' });
+    inp.setAttribute('webkitdirectory', '');
+    inp.style.display = 'none';
+    document.body.append(inp);
+    inp.addEventListener('change', async () => {
+      const files = Array.from(inp.files || []);
+      inp.remove();
+      if (!files.length) return;
+      ffFiles = files;
+      ffFileIdx = {};
+      files.forEach(f => { ffFileIdx[f.name] = f; });
+      // Derive a folder name from the first file's webkitRelativePath
+      monitor.ffName = files[0].webkitRelativePath.split('/')[0] || 'selected';
+      const w = $('#wizFolderName'); if (w) w.value = monitor.ffName;
+      // Immediately scan for the newest .txt log
+      await monitor.ffScan(true);
+      renderMon();
+      toast('Gamelogs folder loaded: ' + files.length + ' files', 'good');
+      if (run.state === 'RUNNING' && config.autoDetect) monitor.start();
+    });
+    inp.click();
+  } else {
+    toast('Folder access is unavailable in this browser.', 'warn');
   }
 }
 
@@ -1807,11 +3951,11 @@ async function openOverlay(){
       return;
     } catch(e){ pipWin = null; }
   }
-  // Fallback: docked in-page overlay (Firefox / sandboxed preview)
+  // Fallback: docked in-page overlay (unsupported browser or PiP blocked)
   $('#overlayDock').hidden = false;
   floatMode = true; overlayVisible = true;
   fullRender();
-  toast('True always-on-top needs Chrome/Edge opened directly on this file — showing a docked overlay instead.', 'warn');
+  toast('Always-on-top overlay unavailable — showing a docked overlay instead.', 'warn');
 }
 function onPipClosed(){
   if (!pipWin) return;
@@ -2463,6 +4607,7 @@ async function init(){
   buildFamFilter();
   buildControls();
   wireRoot(document);
+  wireDropZones();
 
   $('#optOverlayAlways').checked = config.alwaysOverlay;
   $('#optAutoDetect').checked = config.autoDetect;
