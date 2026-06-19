@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0A0D12">
+<title>EVE Abyss Companion — Mobile</title>
+<style>
+  :root{
+    --void:#0A0D12; --hull:#141720; --hull2:#1a1d24; --edge:#2a2e38;
+    --ink:#d6d9e0; --dim:#888f9c; --faint:#555b66;
+    --accent:#9B6BFF; --warn:#FF3B5C; --good:#7CE04A;
+    --mono:'SFMono-Regular',ui-monospace,'Cascadia Mono','Roboto Mono',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--void); color:var(--ink); font-family:var(--mono); height:100%;}
+  body{overscroll-behavior:none;}
+  #app{max-width:480px; margin:0 auto; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column;}
+  .screen{flex:1; display:none; padding-bottom:8px; overflow-y:auto;}
+  .screen.active{display:block;}
+  .ptitle{padding:14px 18px 4px; font-size:12px; letter-spacing:3px; text-transform:uppercase; color:var(--faint);}
+  .psub{padding:0 18px 8px; font-size:11px; color:var(--faint);}
+  .timer-wrap{text-align:center; padding:20px 0 8px;}
+  .ring{width:190px; height:190px; margin:0 auto; position:relative;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring-txt{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);}
+  .ring-num{font-size:40px; font-weight:500; letter-spacing:2px; color:var(--accent);}
+  .ring-lbl{font-size:10px; letter-spacing:3px; text-transform:uppercase; color:var(--faint); margin-top:4px;}
+  .ring.warn .ring-num{color:var(--warn);}
+  .ring.crit{animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.45;}}
+  .tw-row{display:flex; justify-content:center; gap:10px; padding:6px 16px 2px;}
+  .pill{background:var(--hull2); border:0.5px solid var(--edge); border-radius:22px; padding:8px 16px; font-size:13px; color:var(--dim); display:flex; align-items:center; gap:7px; min-height:38px;}
+  .pill.locked{opacity:.5;}
+  .pill .dot{width:8px; height:8px; border-radius:50%; background:var(--accent);}
+  .rooms{display:flex; gap:10px; padding:14px 16px 6px;}
+  .room{flex:1; background:var(--hull); border:0.5px solid var(--edge); border-radius:12px; padding:14px 0; text-align:center; color:var(--faint); font-size:14px; user-select:none; min-height:60px;}
+  .room.done{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb, var(--accent) 9%, transparent);}
+  .room .rt{font-size:11px; margin-top:4px; color:color-mix(in srgb, var(--accent) 70%, transparent);}
+  .room.done .rt{color:var(--accent);}
+  .loot{display:flex; gap:10px; padding:6px 16px;}
+  .field{flex:1; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:8px 12px;}
+  .field label{display:block; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin-bottom:3px;}
+  .field input{width:100%; background:transparent; border:none; color:var(--ink); font-family:var(--mono); font-size:16px; padding:0; outline:none;}
+  .delta{min-width:84px; background:color-mix(in srgb, var(--good) 8%, transparent); border:0.5px solid color-mix(in srgb,var(--good) 30%,transparent); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--good);}
+  .delta.neg{color:var(--warn); background:color-mix(in srgb,var(--warn) 8%,transparent); border-color:color-mix(in srgb,var(--warn) 30%,transparent);}
+  .actions{display:flex; gap:10px; padding:10px 16px 6px;}
+  .btn{flex:1; border-radius:12px; padding:14px 0; text-align:center; font-size:14px; font-family:var(--mono); border:0.5px solid var(--edge); background:var(--hull); color:var(--dim); user-select:none; min-height:50px;}
+  .btn:active{transform:scale(.98);}
+  .btn.primary{background:var(--accent); color:var(--void); border-color:var(--accent); font-weight:500;}
+  .btn.good{background:color-mix(in srgb,var(--good) 12%,transparent); border-color:color-mix(in srgb,var(--good) 35%,transparent); color:var(--good); font-weight:500;}
+  .btn.danger{border-color:color-mix(in srgb,var(--warn) 30%,transparent); color:color-mix(in srgb,var(--warn) 75%,transparent);}
+  .lastrun{margin:8px 16px 2px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:10px 12px; font-size:11px; color:var(--faint);}
+  .lastrun b{color:var(--dim); font-weight:400;}
+  .lastrun .ll{color:var(--good);}
+  .sess{margin:10px 16px 4px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:12px;}
+  .sess .sh{font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin-bottom:8px;}
+  .sess-row{display:flex; gap:8px; align-items:center;}
+  .sess-row input[type=text]{flex:1; background:var(--hull2); border:0.5px solid var(--edge); border-radius:8px; color:var(--ink); font-family:var(--mono); font-size:14px; padding:9px 10px; outline:none; min-width:0;}
+  .sess-row input[type=number]{width:56px; background:var(--hull2); border:0.5px solid var(--edge); border-radius:8px; color:var(--ink); font-family:var(--mono); font-size:14px; padding:9px 8px; outline:none; text-align:center;}
+  .sess-row .btn{flex:0 0 auto; padding:9px 16px; min-height:0;}
+  .sess .prog-track{height:6px; background:var(--hull2); border-radius:4px; overflow:hidden; margin:10px 0 8px;}
+  .sess .prog-fill{height:100%; background:var(--accent);}
+  .sess .pinfo{display:flex; justify-content:space-between; font-size:12px; color:var(--dim);}
+  .sess .pname{color:var(--ink);}
+  .scope{display:flex; gap:8px; padding:4px 16px 10px;}
+  .scope .sc{flex:1; text-align:center; background:var(--hull); border:0.5px solid var(--edge); border-radius:8px; padding:9px 0; font-size:12px; color:var(--dim);}
+  .scope .sc.on{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,transparent);}
+  .row{margin:0 12px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:12px; padding:11px 13px;}
+  .row.rt{border-left:2px solid var(--good);}
+  .row.rl{border-left:2px solid #FFD23F;}
+  .row.rc{border-left:2px solid var(--accent);}
+  .row-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .row-tw{font-size:13px; color:var(--ink); display:flex; align-items:center; gap:6px;}
+  .row-loot{font-size:13px; color:var(--good);}
+  .row-loot.none{color:var(--faint);}
+  .row-bot{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .row-time{font-size:11px; color:var(--dim);}
+  .row-splits{font-size:10px; color:var(--faint); flex:1; min-width:120px;}
+  .row-date{font-size:10px; color:var(--faint);}
+  .badges{display:inline-flex; gap:3px;}
+  .bdg{width:15px; height:15px; border-radius:3px; font-size:9px; font-weight:500; display:flex; align-items:center; justify-content:center; color:var(--void);}
+  .bdg.t{background:var(--good);} .bdg.l{background:#FFD23F;} .bdg.c{background:var(--accent);}
+  .empty{padding:40px 18px; text-align:center; color:var(--faint); font-size:13px; line-height:1.7;}
+  .filters{display:flex; flex-wrap:wrap; gap:6px; padding:2px 16px 10px;}
+  .chip{background:var(--hull); border:0.5px solid var(--edge); border-radius:18px; padding:6px 13px; font-size:12px; color:var(--dim);}
+  .chip.on{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,transparent);}
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:4px 16px 10px;}
+  .card{background:var(--hull); border:0.5px solid var(--edge); border-radius:12px; padding:11px 13px;}
+  .card .cl{font-size:10px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); margin-bottom:5px;}
+  .card .cv{font-size:19px; color:var(--ink); font-weight:500;}
+  .card .cv.accent{color:var(--good);}
+  .card .cv small{font-size:11px; color:var(--dim); font-weight:400;}
+  .sec-h{padding:12px 18px 6px; font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--faint);}
+  .mini{margin:0 16px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:10px 12px;}
+  .mini-top{display:flex; justify-content:space-between; font-size:13px; color:var(--ink); margin-bottom:6px;}
+  .mini-grid{display:flex; gap:14px; font-size:11px; color:var(--dim); flex-wrap:wrap;}
+  .mini-grid b{color:var(--ink); font-weight:400;}
+  .best{color:var(--good);}
+  .sess-hrow{margin:0 16px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:10px 12px;}
+  .sess-hrow .sht{display:flex; justify-content:space-between; font-size:12px;}
+  .sess-hrow .shn{color:var(--ink);} .sess-hrow .shd{color:var(--faint);}
+  .sess-hrow .shstat{font-size:11px; color:var(--dim); margin-top:5px;}
+  .prose{padding:6px 18px 16px; font-size:13px; line-height:1.75; color:var(--dim);}
+  .prose h3{color:var(--ink); font-size:14px; font-weight:500; margin:16px 0 4px; letter-spacing:1px;}
+  .prose b{color:var(--ink); font-weight:400;}
+  .prose .tag{display:inline-block; padding:1px 7px; border-radius:5px; font-size:11px; margin-right:4px;}
+  .prose a{color:var(--accent); text-decoration:none;}
+  .about-v{padding:14px 18px 4px;}
+  .about-v .bn{font-size:18px; color:var(--ink); font-weight:500;}
+  .about-v .vn{font-size:12px; color:var(--accent); margin-top:2px;}
+  .lk{display:flex; gap:10px; padding:8px 16px;}
+  .lk a{flex:1; text-align:center; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:13px 0; font-size:13px; color:var(--ink); text-decoration:none;}
+  nav{display:flex; border-top:0.5px solid #1e2230; background:#0c0f16; padding:8px 0 calc(8px + env(safe-area-inset-bottom)); position:sticky; bottom:0;}
+  .nav-item{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:4px 0; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:var(--faint); user-select:none;}
+  .nav-item.on{color:var(--accent);}
+  .nav-item .ni{font-size:21px; line-height:1;}
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-end; z-index:50;}
+  .modal.open{display:flex;}
+  .sheet{width:100%; max-width:480px; margin:0 auto; background:var(--hull); border-top:0.5px solid var(--edge); border-radius:18px 18px 0 0; padding:14px 14px calc(18px + env(safe-area-inset-bottom));}
+  .sheet h4{margin:4px 6px 12px; font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--faint); font-weight:400;}
+  .opts{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .opt{background:var(--hull2); border:0.5px solid var(--edge); border-radius:10px; padding:14px 12px; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:9px;}
+  .opt.on{border-color:var(--accent);}
+  .opt .sw{width:11px; height:11px; border-radius:50%;}
+</style>
+</head>
+<body>
+<div id="app">
+  <section class="screen active" id="screen-run">
+    <div class="timer-wrap">
+      <div class="ring" id="ring">
+        <svg width="190" height="190" viewBox="0 0 190 190">
+          <circle cx="95" cy="95" r="84" fill="none" stroke="#1a1d24" stroke-width="8"></circle>
+          <circle id="ringArc" cx="95" cy="95" r="84" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round" stroke-dasharray="527.79" stroke-dashoffset="0"></circle>
+        </svg>
+        <div class="ring-txt">
+          <div class="ring-num" id="ringNum">20:00</div>
+          <div class="ring-lbl">remaining</div>
+        </div>
+      </div>
+    </div>
+    <div class="tw-row">
+      <div class="pill" id="pillTier" onclick="openPicker('tier')"><span class="dot"></span><span id="pillTierTxt">T0</span></div>
+      <div class="pill" id="pillWx" onclick="openPicker('weather')"><span class="dot"></span><span id="pillWxTxt">Dark</span></div>
+    </div>
+    <div class="rooms" id="rooms"></div>
+    <div class="loot">
+      <div class="field"><label>Before (M)</label><input id="lootBefore" type="text" inputmode="decimal" placeholder="—" oninput="onLoot()"></div>
+      <div class="field"><label>After (M)</label><input id="lootAfter" type="text" inputmode="decimal" placeholder="—" oninput="onLoot()"></div>
+      <div class="delta" id="lootDelta">—</div>
+    </div>
+    <div class="actions" id="actions"></div>
+    <div class="lastrun" id="lastRun"></div>
+    <div id="sessBox"></div>
+  </section>
+  <section class="screen" id="screen-history">
+    <div class="ptitle">History</div>
+    <div class="scope" id="histScope"></div>
+    <div id="histList"></div>
+  </section>
+  <section class="screen" id="screen-stats">
+    <div class="ptitle">Stats</div>
+    <div class="scope" id="statScope"></div>
+    <div class="filters" id="statTierFilter"></div>
+    <div class="filters" id="statWxFilter"></div>
+    <div class="cards" id="statCards"></div>
+    <div id="statRecords"></div>
+    <div id="statReco"></div>
+    <div id="statSessions"></div>
+  </section>
+  <section class="screen" id="screen-guide">
+    <div class="ptitle">Guide</div>
+    <div class="prose" id="guideBody"></div>
+  </section>
+  <section class="screen" id="screen-about">
+    <div class="ptitle">About</div>
+    <div class="about-v"><div class="bn">EVE Abyss Companion</div><div class="vn">Mobile · v1.0.0</div></div>
+    <div class="prose" id="aboutBody"></div>
+    <div class="lk"><a href="https://github.com/Jakelsza/EAC-Web">GitHub</a><a href="https://ko-fi.com/jakkelsza">Ko-fi</a></div>
+    <div class="prose" style="padding-top:4px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:12px 14px;">
+        <span style="color:var(--ink);">Sound cues</span>
+        <span id="audioToggle" onclick="toggleAudio()" style="font-size:13px; color:var(--accent);">On</span>
+      </div>
+      <div style="margin-top:10px; text-align:center;">
+        <span onclick="resetAll()" style="font-size:12px; color:color-mix(in srgb,var(--warn) 70%,transparent);">Reset all data</span>
+      </div>
+    </div>
+  </section>
+  <nav>
+    <div class="nav-item on" data-screen="run" onclick="go('run')"><span class="ni" style="font-family:var(--mono)">▶</span>Run</div>
+    <div class="nav-item" data-screen="history" onclick="go('history')"><span class="ni" style="font-family:var(--mono)">≡</span>History</div>
+    <div class="nav-item" data-screen="stats" onclick="go('stats')"><span class="ni" style="font-family:var(--mono)">▮</span>Stats</div>
+    <div class="nav-item" data-screen="guide" onclick="go('guide')"><span class="ni" style="font-family:var(--mono)">✦</span>Guide</div>
+    <div class="nav-item" data-screen="about" onclick="go('about')"><span class="ni" style="font-family:var(--mono)">ⓘ</span>About</div>
+  </nav>
+</div>
+<div class="modal" id="picker" onclick="if(event.target===this)closePicker()">
+  <div class="sheet">
+    <h4 id="pickerTitle">Select</h4>
+    <div class="opts" id="pickerOpts"></div>
+  </div>
+</div>
+<script>
+"use strict";
+var RUN_SECONDS=1200, RING_CIRC=527.79;
+var TIERS=['T0','T1','T2','T3','T4','T5','T6'];
+var WEATHERS=['Dark','Electrical','Exotic','Firestorm','Gamma'];
+var WEATHER_BASE={Dark:'#9B6BFF',Electrical:'#FFD23F',Exotic:'#2EE6A6',Firestorm:'#FF6A3D',Gamma:'#7CE04A'};
+
+function hexToHsl(hex){
+  var r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255;
+  var mx=Math.max(r,g,b),mn=Math.min(r,g,b),h=0,s=0,l=(mx+mn)/2;
+  if(mx!==mn){var d=mx-mn;s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+    if(mx===r)h=(g-b)/d+(g<b?6:0);else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h/=6;}
+  return {h:h,s:s,l:l};
+}
+function hslToHex(h,s,l){
+  var r,g,b;
+  if(s===0){r=g=b=l;}
+  else{var q=l<0.5?l*(1+s):l+s-l*s,p=2*l-q;
+    var hk=function(t){if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+    r=hk(h+1/3);g=hk(h);b=hk(h-1/3);}
+  var to=function(x){var v=Math.round(Math.min(1,Math.max(0,x))*255).toString(16);return v.length<2?'0'+v:v;};
+  return '#'+to(r)+to(g)+to(b);
+}
+function tierWeatherAccent(tier,weather){
+  var base=WEATHER_BASE[weather]||'#9B6BFF',c=hexToHsl(base),f=TIERS.indexOf(tier)/6;if(f<0)f=0;
+  var dl=0.16-f*(0.16+0.14),nl=Math.min(0.86,Math.max(0.44,c.l+dl)),ns=Math.min(1,c.s*(0.82+f*(1.12-0.82)));
+  return hslToHex(c.h,ns,nl);
+}
+
+var store=(function(){var mem={};return{
+  get:function(k){try{return localStorage.getItem(k);}catch(e){return (k in mem)?mem[k]:null;}},
+  set:function(k,v){try{localStorage.setItem(k,v);}catch(e){mem[k]=v;}}
+};})();
+function load(k,def){var v=store.get(k);if(v==null)return def;try{return JSON.parse(v);}catch(e){return def;}}
+function save(k,val){store.set(k,JSON.stringify(val));}
+
+var config=load('eac_m_config',{tier:'T0',weather:'Dark',audio:true});
+var runHist=load('eac_m_history',[]);
+var activeSession=load('eac_m_session',null);
+var sessions=load('eac_m_sessions',[]);
+var run={state:'ready',startTs:0,frozen:0,splits:[]};
+var histScope='all', statScope='all', statTier='all', statWx='all';
+
+function pad(x){return String(x).padStart(2,'0');}
+function fmtMMSS(sec){sec=Math.max(0,Math.round(sec));return pad(Math.floor(sec/60))+':'+pad(sec%60);}
+function fmtDur(sec){sec=Math.max(0,Math.round(sec));var h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60),s=sec%60;return h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);}
+function fmtM(n){if(n==null||isNaN(n))return '—';return n.toFixed(2)+' M';}
+function fmtDelta(n){if(n==null||isNaN(n))return '—';return (n>=0?'+':'')+n.toFixed(2)+' M';}
+function fmtDate(ts){var d=new Date(ts);return pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function fmtWhen(ts){var d=new Date(ts);return pad(d.getMonth()+1)+'-'+pad(d.getDate())+' '+pad(d.getHours())+':'+pad(d.getMinutes());}
+function perRoomSplits(splits){var out=[],prev=0;for(var i=0;i<splits.length;i++){out.push(splits[i]-prev);prev=splits[i];}return out;}
+function fmtSplits(splits){var d=perRoomSplits(splits);return d.map(function(x,i){return 'R'+(i+1)+' '+fmtMMSS(x);}).join('  ');}
+function elapsedNow(){return run.state==='running'?(Date.now()-run.startTs)/1000:run.frozen;}
+function runEff(r){var hrs=r.elapsedSec/3600;return hrs>0?(r.delta||0)/hrs:0;}
+
+function computeStats(runs){
+  var n=runs.length;if(!n)return {count:0};
+  var totalTime=0,totalLoot=0,best=null;
+  for(var i=0;i<n;i++){var r=runs[i];totalTime+=r.elapsedSec;totalLoot+=(r.delta||0);if(!best||r.elapsedSec<best.elapsedSec)best=r;}
+  return {count:n,totalTime:totalTime,avgRun:totalTime/n,best:best,totalLoot:totalLoot,avgLoot:totalLoot/n,iskHr:totalTime>0?totalLoot/(totalTime/3600):0};
+}
+function computeRecords(runs){
+  var m={};
+  for(var i=0;i<runs.length;i++){var r=runs[i],k=r.tier+'|'+r.weather;
+    if(!m[k])m[k]={bestTimeId:null,bestTime:Infinity,bestLootId:null,bestLoot:-Infinity,bestEffId:null,bestEff:-Infinity};
+    var e=m[k];
+    if(r.elapsedSec<e.bestTime){e.bestTime=r.elapsedSec;e.bestTimeId=r.id;}
+    if((r.delta||0)>e.bestLoot){e.bestLoot=r.delta||0;e.bestLootId=r.id;}
+    var ef=runEff(r);if(ef>e.bestEff){e.bestEff=ef;e.bestEffId=r.id;}}
+  return m;
+}
+function recordFlags(records,r){var e=records[r.tier+'|'+r.weather];if(!e)return {};return {t:e.bestTimeId===r.id,l:e.bestLootId===r.id,c:e.bestEffId===r.id};}
+function computeRecommendations(runs){
+  var byTier={};
+  for(var i=0;i<runs.length;i++){var r=runs[i];(byTier[r.tier]=byTier[r.tier]||[]).push(r);}
+  var out={};
+  Object.keys(byTier).forEach(function(tier){
+    var byW={};byTier[tier].forEach(function(r){(byW[r.weather]=byW[r.weather]||[]).push(r);});
+    var rows=[];Object.keys(byW).forEach(function(w){var st=computeStats(byW[w]);rows.push({weather:w,runs:byW[w].length,avgLoot:st.avgLoot,avgRun:st.avgRun,iskHr:st.iskHr});});
+    rows.sort(function(a,b){return b.iskHr-a.iskHr;});
+    out[tier]=rows;});
+  return out;
+}
+
+function applyAccent(){document.documentElement.style.setProperty('--accent',tierWeatherAccent(config.tier,config.weather));}
+
+var timerInt=null,audioCtx=null,cued={};
+function startTimer(){if(timerInt)clearInterval(timerInt);timerInt=setInterval(updateTimer,250);updateTimer();}
+function stopTimer(){if(timerInt){clearInterval(timerInt);timerInt=null;}}
+function updateTimer(){
+  var el=elapsedNow(),remain=Math.max(0,RUN_SECONDS-el),frac=Math.min(1,el/RUN_SECONDS);
+  document.getElementById('ringNum').textContent=fmtMMSS(remain);
+  document.getElementById('ringArc').setAttribute('stroke-dashoffset',(RING_CIRC*frac).toFixed(1));
+  var ring=document.getElementById('ring'),arc=document.getElementById('ringArc');
+  ring.classList.toggle('warn',remain<=300);
+  ring.classList.toggle('crit',remain<=60&&run.state==='running');
+  arc.setAttribute('stroke',remain<=300?'var(--warn)':'var(--accent)');
+  if(run.state==='running'){[300,60,0].forEach(function(t){if(remain<=t&&!cued[t]){cued[t]=true;cue(t);}});}
+}
+function ensureAudio(){if(!audioCtx){try{audioCtx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
+function beep(freq,dur){if(!config.audio||!audioCtx)return;try{var o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sine';o.frequency.value=freq;g.gain.value=0.07;var t=audioCtx.currentTime;o.start(t);o.stop(t+dur);}catch(e){}}
+function cue(t){if(t===300)beep(660,0.18);else if(t===60){beep(660,0.15);setTimeout(function(){beep(660,0.15);},180);}else{beep(440,0.3);setTimeout(function(){beep(330,0.4);},260);}}
+
+function startRun(){ensureAudio();if(audioCtx&&audioCtx.state==='suspended')audioCtx.resume();run.state='running';run.startTs=Date.now();run.frozen=0;run.splits=[];cued={};startTimer();renderRun();}
+function endRun(){if(run.state!=='running')return;run.frozen=elapsedNow();run.state='pending';stopTimer();updateTimer();renderRun();}
+function resumeRun(){if(run.state!=='pending')return;run.startTs=Date.now()-run.frozen*1000;run.state='running';startTimer();renderRun();}
+function discardRun(){stopTimer();run={state:'ready',startTs:0,frozen:0,splits:[]};document.getElementById('lootAfter').value='';updateTimer();renderRun();}
+function tapRoom(i){if(run.state!=='running')return;if(i===run.splits.length){run.splits.push(elapsedNow());if(run.splits.length>=3){endRun();return;}}else if(i===run.splits.length-1)run.splits.pop();renderRooms();}
+function parseNum(s){return parseFloat(String(s).replace(',','.'));}
+function onLoot(){var b=parseNum(document.getElementById('lootBefore').value),a=parseNum(document.getElementById('lootAfter').value),d=document.getElementById('lootDelta');if(!isNaN(b)&&!isNaN(a)){var v=a-b;d.textContent=fmtDelta(v);d.classList.toggle('neg',v<0);}else{d.textContent='—';d.classList.remove('neg');}}
+function submitRun(){
+  var el=Math.round(elapsedNow());
+  var b=parseNum(document.getElementById('lootBefore').value),a=parseNum(document.getElementById('lootAfter').value);
+  var delta=(!isNaN(b)&&!isNaN(a))?a-b:null;
+  var r={id:'r'+Date.now()+Math.floor(Math.random()*1000),ts:Date.now(),tier:config.tier,weather:config.weather,rooms:run.splits.length,elapsedSec:el,splits:run.splits.slice(),before:isNaN(b)?null:b,after:isNaN(a)?null:a,delta:delta,sessionId:activeSession?activeSession.id:null};
+  runHist.unshift(r);save('eac_m_history',runHist);
+  if(activeSession){var done=runHist.filter(function(h){return h.sessionId===activeSession.id;}).length;if(activeSession.target>0&&done>=activeSession.target)finishSession();else save('eac_m_session',activeSession);}
+  stopTimer();
+  var carry=isNaN(a)?'':String(a);
+  run={state:'ready',startTs:0,frozen:0,splits:[]};
+  document.getElementById('lootBefore').value=carry;document.getElementById('lootAfter').value='';
+  onLoot();updateTimer();renderRun();
+}
+function startSession(){var name=document.getElementById('sessName').value.trim(),target=parseInt(document.getElementById('sessTarget').value,10);activeSession={id:'s'+Date.now(),name:name,target:isNaN(target)?0:target,startTs:Date.now()};save('eac_m_session',activeSession);renderRun();}
+function finishSession(){if(!activeSession)return;var runs=runHist.filter(function(h){return h.sessionId===activeSession.id;}),st=computeStats(runs);sessions.unshift({id:activeSession.id,name:activeSession.name,target:activeSession.target,startTs:activeSession.startTs,endTs:Date.now(),runCount:runs.length,totalLoot:st.totalLoot||0,iskHr:st.iskHr||0,avgRun:st.avgRun||0});save('eac_m_sessions',sessions);activeSession=null;save('eac_m_session',activeSession);renderRun();}
+
+var pickerKind='tier';
+function openPicker(kind){if(run.state!=='ready')return;pickerKind=kind;document.getElementById('pickerTitle').textContent=kind==='tier'?'Select tier':'Select weather';var opts=kind==='tier'?TIERS:WEATHERS,cur=kind==='tier'?config.tier:config.weather,html='';for(var i=0;i<opts.length;i++){var o=opts[i],sw=tierWeatherAccent(kind==='tier'?o:config.tier,kind==='tier'?config.weather:o);html+='<div class="opt'+(o===cur?' on':'')+'" onclick="choose(\''+o+'\')"><span class="sw" style="background:'+sw+'"></span>'+o+'</div>';}document.getElementById('pickerOpts').innerHTML=html;document.getElementById('picker').classList.add('open');}
+function closePicker(){document.getElementById('picker').classList.remove('open');}
+function choose(val){if(pickerKind==='tier')config.tier=val;else config.weather=val;save('eac_m_config',config);applyAccent();closePicker();renderRun();}
+
+function renderRun(){
+  document.getElementById('pillTierTxt').textContent=config.tier;
+  document.getElementById('pillWxTxt').textContent=config.weather;
+  document.getElementById('pillTier').classList.toggle('locked',run.state!=='ready');
+  document.getElementById('pillWx').classList.toggle('locked',run.state!=='ready');
+  renderRooms();renderActions();renderLast();renderSessBox();updateTimer();
+}
+function renderRooms(){var dur=perRoomSplits(run.splits),html='';for(var i=0;i<3;i++){var done=i<run.splits.length,t=done?fmtMMSS(dur[i]):'—';html+='<div class="room'+(done?' done':'')+'" onclick="tapRoom('+i+')">R'+(i+1)+(done?' ✓':'')+'<div class="rt">'+t+'</div></div>';}document.getElementById('rooms').innerHTML=html;}
+function renderActions(){var el=document.getElementById('actions'),s=run.state,h='';if(s==='ready')h='<div class="btn primary" onclick="startRun()">▶ Start</div>';else if(s==='running')h='<div class="btn danger" onclick="endRun()">■ End</div>';else h='<div class="btn" onclick="resumeRun()">▶ Resume</div><div class="btn danger" onclick="discardRun()">✕ Discard</div><div class="btn good" onclick="submitRun()">✓ Submit</div>';el.innerHTML=h;}
+function renderLast(){var el=document.getElementById('lastRun');if(!runHist.length){el.style.display='none';return;}el.style.display='block';var r=runHist[0];el.innerHTML='Last run — <b>'+r.tier+' '+r.weather+'</b> · '+r.rooms+'/3 · '+fmtDur(r.elapsedSec)+(r.delta!=null?' · <span class="ll">'+fmtDelta(r.delta)+'</span>':'');}
+function renderSessBox(){
+  var el=document.getElementById('sessBox');
+  if(activeSession){
+    var done=runHist.filter(function(h){return h.sessionId===activeSession.id;}).length,tgt=activeSession.target,pct=tgt>0?Math.min(100,Math.round(done/tgt*100)):0;
+    el.innerHTML='<div class="sess"><div class="sh">Active session</div><div class="pinfo"><span class="pname">'+(activeSession.name||'Session')+'</span><span>'+done+(tgt>0?' / '+tgt:'')+' runs</span></div>'+(tgt>0?'<div class="prog-track"><div class="prog-fill" style="width:'+pct+'%"></div></div>':'<div style="height:8px"></div>')+'<div class="sess-row"><div class="btn" style="flex:1" onclick="finishSession()">Finish session</div></div></div>';
+  }else{
+    el.innerHTML='<div class="sess"><div class="sh">New session</div><div class="sess-row"><input id="sessName" type="text" placeholder="name (optional)"><input id="sessTarget" type="number" inputmode="numeric" placeholder="10"><div class="btn" onclick="startSession()">Start</div></div></div>';
+  }
+}
+function getScopedRuns(scope){if(scope==='session'&&activeSession)return runHist.filter(function(h){return h.sessionId===activeSession.id;});return runHist;}
+function renderHistory(){
+  var sc=document.getElementById('histScope');
+  sc.innerHTML='<div class="sc'+(histScope==='all'?' on':'')+'" onclick="setHistScope(\'all\')">All runs</div><div class="sc'+(histScope==='session'?' on':'')+'" onclick="setHistScope(\'session\')">This session</div>';
+  var runs=getScopedRuns(histScope),list=document.getElementById('histList');
+  if(!runs.length){list.innerHTML='<div class="empty">'+(histScope==='session'&&!activeSession?'No active session.<br>Start one on the Run tab.':'No runs logged yet.<br>Complete a run to see it here.')+'</div>';return;}
+  var records=computeRecords(runHist),html='<div class="psub">'+runs.length+' run'+(runs.length>1?'s':'')+'</div>';
+  for(var i=0;i<runs.length;i++){
+    var r=runs[i],f=recordFlags(records,r),cls=f.t?'rt':(f.l?'rl':(f.c?'rc':'')),bdg='';
+    if(f.t)bdg+='<span class="bdg t">T</span>';if(f.l)bdg+='<span class="bdg l">$</span>';if(f.c)bdg+='<span class="bdg c">★</span>';
+    html+='<div class="row '+cls+'"><div class="row-top"><div class="row-tw">'+r.tier+' · '+r.weather+(bdg?' <span class="badges">'+bdg+'</span>':'')+'</div><div class="row-loot'+(r.delta==null?' none':'')+'">'+fmtDelta(r.delta)+'</div></div><div class="row-bot"><div class="row-time">'+fmtDur(r.elapsedSec)+'</div><div class="row-splits">'+(r.splits.length?fmtSplits(r.splits):'—')+'</div><div class="row-date">'+fmtDate(r.ts)+'</div></div></div>';
+  }
+  list.innerHTML=html;
+}
+function setHistScope(s){histScope=s;renderHistory();}
+
+function renderStats(){
+  document.getElementById('statScope').innerHTML='<div class="sc'+(statScope==='all'?' on':'')+'" onclick="setStatScope(\'all\')">All time</div><div class="sc'+(statScope==='session'?' on':'')+'" onclick="setStatScope(\'session\')">This session</div>';
+  var base=getScopedRuns(statScope),tiersPresent=[];base.forEach(function(r){if(tiersPresent.indexOf(r.tier)<0)tiersPresent.push(r.tier);});tiersPresent.sort();
+  var tf='<div class="chip'+(statTier==='all'?' on':'')+'" onclick="setStatTier(\'all\')">All tiers</div>';
+  tiersPresent.forEach(function(t){tf+='<div class="chip'+(statTier===t?' on':'')+'" onclick="setStatTier(\''+t+'\')">'+t+'</div>';});
+  document.getElementById('statTierFilter').innerHTML=tf;
+  var wxEl=document.getElementById('statWxFilter');
+  if(statTier!=='all'){
+    var wxPresent=[];base.forEach(function(r){if(r.tier===statTier&&wxPresent.indexOf(r.weather)<0)wxPresent.push(r.weather);});
+    var wf='<div class="chip'+(statWx==='all'?' on':'')+'" onclick="setStatWx(\'all\')">All weather</div>';
+    wxPresent.forEach(function(w){wf+='<div class="chip'+(statWx===w?' on':'')+'" onclick="setStatWx(\''+w+'\')">'+w+'</div>';});
+    wxEl.innerHTML=wf;wxEl.style.display='flex';
+  }else{wxEl.innerHTML='';wxEl.style.display='none';}
+  var runs=base.filter(function(r){return (statTier==='all'||r.tier===statTier)&&(statWx==='all'||r.weather===statWx);});
+  var st=computeStats(runs),cards=document.getElementById('statCards');
+  if(!st.count){
+    document.getElementById('statRecords').innerHTML='';document.getElementById('statReco').innerHTML='';
+    document.getElementById('statSessions').innerHTML=(statScope==='all')?sessionHistoryHtml():'';
+    cards.innerHTML='<div class="empty" style="grid-column:1/3">'+(statScope==='session'&&!activeSession?'No active session.':'No runs in this filter.')+'</div>';
+    return;
+  }
+  cards.innerHTML=card('Runs',st.count)+card('Total time',fmtDur(st.totalTime))+card('Avg run',fmtDur(st.avgRun))+card('Best run',st.best?fmtDur(st.best.elapsedSec)+'<br><small>'+st.best.tier+' '+st.best.weather+'</small>':'—')+card('Total loot',fmtM(st.totalLoot))+card('Avg loot',fmtM(st.avgLoot))+card('ISK / hour',fmtM(st.iskHr),true);
+  var records=computeRecords(runs),rk=Object.keys(records).sort(),rh='<div class="sec-h">Records — best per tier + weather</div>';
+  if(!rk.length)rh+='<div class="empty">—</div>';
+  rk.forEach(function(k){var e=records[k],parts=k.split('|');rh+='<div class="mini"><div class="mini-top"><span>'+parts[0]+' · '+parts[1]+'</span></div><div class="mini-grid"><span>time <b class="best">'+fmtDur(e.bestTime)+'</b></span><span>loot <b class="best">'+fmtDelta(e.bestLoot)+'</b></span><span>isk/hr <b class="best">'+fmtM(e.bestEff)+'</b></span></div></div>';});
+  document.getElementById('statRecords').innerHTML=rh;
+  var reco=computeRecommendations(runs),tk=Object.keys(reco).sort(),ch='<div class="sec-h">What pays best — from your runs</div>';
+  tk.forEach(function(tier){ch+='<div class="mini"><div class="mini-top"><span>'+tier+'</span></div>';reco[tier].forEach(function(row,idx){ch+='<div class="mini-grid" style="margin-top:'+(idx?6:0)+'px"><span style="min-width:74px;color:'+(idx===0?'var(--good)':'var(--dim)')+'">'+row.weather+(idx===0?' ★':'')+'</span><span><b>'+row.runs+'</b> runs</span><span>avg <b>'+fmtM(row.avgLoot)+'</b></span><span>isk/hr <b>'+fmtM(row.iskHr)+'</b></span></div>';});ch+='</div>';});
+  document.getElementById('statReco').innerHTML=ch;
+  document.getElementById('statSessions').innerHTML=(statScope==='all')?sessionHistoryHtml():'';
+}
+function sessionHistoryHtml(){if(!sessions.length)return '';var h='<div class="sec-h">Session history</div>';sessions.forEach(function(s){h+='<div class="sess-hrow"><div class="sht"><span class="shn">'+(s.name||'Session')+'</span><span class="shd">'+fmtWhen(s.startTs)+'</span></div><div class="shstat">'+s.runCount+' runs · '+fmtM(s.totalLoot)+' · '+fmtM(s.iskHr)+'/hr</div></div>';});return h;}
+function card(label,val,accent){return '<div class="card"><div class="cl">'+label+'</div><div class="cv'+(accent?' accent':'')+'">'+val+'</div></div>';}
+function setStatScope(s){statScope=s;statTier='all';statWx='all';renderStats();}
+function setStatTier(t){statTier=t;statWx='all';renderStats();}
+function setStatWx(w){statWx=w;renderStats();}
+
+function renderGuide(){
+  document.getElementById('guideBody').innerHTML='<h3>The basics</h3>Each Abyssal pocket gives you <b>20 minutes</b> across three rooms. The timer counts down the moment you take the gate — tap <b>Start</b> as you enter. If the timer hits zero before you exit the third room, your ship is destroyed.<h3>Using this app</h3>Set your <b>tier</b> and <b>weather</b> by tapping the pills, then tap <b>Start</b>. Tap <b>R1 / R2 / R3</b> as you clear each room to log your split times. Enter your cargo value <b>before</b> and <b>after</b> to track loot. Tap <b>End</b> when you exit, then <b>Submit</b> to save the run.<h3>Sessions</h3>Start a session with a target run count to track a farming block separately. History and Stats can filter to just that session.<h3>Weather colours</h3><span class="tag" style="background:#9B6BFF22;color:#9B6BFF">Dark</span><span class="tag" style="background:#FFD23F22;color:#FFD23F">Electrical</span><span class="tag" style="background:#2EE6A622;color:#2EE6A6">Exotic</span><span class="tag" style="background:#FF6A3D22;color:#FF6A3D">Firestorm</span><span class="tag" style="background:#7CE04A22;color:#7CE04A">Gamma</span><br><br>The timer ring and accents shift colour with your selected tier and weather. The ring turns <b style="color:var(--warn)">red under 5 minutes</b> and pulses under one minute.<h3>Stay alive</h3>Keep moving — sitting still stacks incoming damage. Do not overheat your modules for too long or they burn out when you need them most. Watch the clock on every room.';
+}
+function renderAbout(){
+  document.getElementById('audioToggle').textContent=config.audio?'On':'Off';
+  document.getElementById('aboutBody').innerHTML='A free, manual companion for EVE Online Abyssal Deadspace runs. Track your timer, room splits, loot and stats from your phone while you fly on PC.<br><br>This mobile version is <b>fully manual</b> — it does not read your EVE client, your files, or anything on your computer. Nothing leaves your phone; all data stays in your browser. Fully EULA compliant.<br><br>The desktop edition adds automatic NPC detection from your combat log and an always-on-top overlay.';
+}
+function toggleAudio(){config.audio=!config.audio;save('eac_m_config',config);renderAbout();}
+function resetAll(){if(!confirm('Reset all runs, sessions and settings? This cannot be undone.'))return;runHist=[];sessions=[];activeSession=null;config={tier:'T0',weather:'Dark',audio:true};save('eac_m_history',runHist);save('eac_m_sessions',sessions);save('eac_m_session',activeSession);save('eac_m_config',config);applyAccent();discardRun();go('run');}
+
+function go(screen){
+  var items=document.querySelectorAll('.nav-item');
+  for(var i=0;i<items.length;i++)items[i].classList.toggle('on',items[i].getAttribute('data-screen')===screen);
+  var screens=document.querySelectorAll('.screen');
+  for(var j=0;j<screens.length;j++)screens[j].classList.remove('active');
+  document.getElementById('screen-'+screen).classList.add('active');
+  window.scrollTo(0,0);
+  if(screen==='history')renderHistory();
+  else if(screen==='stats')renderStats();
+  else if(screen==='guide')renderGuide();
+  else if(screen==='about')renderAbout();
+}
+
+/* expose handlers for inline onclick (robust even if wrapped) */
+window.openPicker=openPicker;window.closePicker=closePicker;window.choose=choose;
+window.startRun=startRun;window.endRun=endRun;window.resumeRun=resumeRun;window.discardRun=discardRun;
+window.tapRoom=tapRoom;window.onLoot=onLoot;window.submitRun=submitRun;
+window.startSession=startSession;window.finishSession=finishSession;
+window.setHistScope=setHistScope;window.setStatScope=setStatScope;window.setStatTier=setStatTier;window.setStatWx=setStatWx;
+window.toggleAudio=toggleAudio;window.resetAll=resetAll;window.go=go;
+
+applyAccent();
+renderRun();
+</script>
+</body>
+</html>
