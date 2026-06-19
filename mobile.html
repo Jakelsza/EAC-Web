@@ -76,8 +76,11 @@
   .row-loot.none{color:var(--faint);}
   .row-bot{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   .row-time{font-size:11px; color:var(--dim);}
-  .row-splits{font-size:10px; color:var(--faint); flex:1; min-width:120px;}
+  .row-splits{font-size:10px; color:var(--faint); flex:1; min-width:110px;}
   .row-date{font-size:10px; color:var(--faint);}
+  .row-act{display:flex; gap:8px; margin-top:9px; padding-top:9px; border-top:0.5px solid var(--edge);}
+  .row-act .ra{flex:1; text-align:center; font-size:11px; padding:7px 0; border-radius:7px; border:0.5px solid var(--edge); color:var(--dim);}
+  .row-act .ra.del{color:color-mix(in srgb,var(--warn) 70%,transparent); border-color:color-mix(in srgb,var(--warn) 25%,transparent);}
   .badges{display:inline-flex; gap:3px;}
   .bdg{width:15px; height:15px; border-radius:3px; font-size:9px; font-weight:500; display:flex; align-items:center; justify-content:center; color:var(--void);}
   .bdg.t{background:var(--good);} .bdg.l{background:#FFD23F;} .bdg.c{background:var(--accent);}
@@ -97,10 +100,18 @@
   .mini-grid{display:flex; gap:14px; font-size:11px; color:var(--dim); flex-wrap:wrap;}
   .mini-grid b{color:var(--ink); font-weight:400;}
   .best{color:var(--good);}
-  .sess-hrow{margin:0 16px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:10px 12px;}
-  .sess-hrow .sht{display:flex; justify-content:space-between; font-size:12px;}
-  .sess-hrow .shn{color:var(--ink);} .sess-hrow .shd{color:var(--faint);}
-  .sess-hrow .shstat{font-size:11px; color:var(--dim); margin-top:5px;}
+  .srow{margin:0 16px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:10px; padding:11px 13px;}
+  .srow.act{border-color:color-mix(in srgb,var(--accent) 45%,var(--edge));}
+  .srow-head{display:flex; align-items:center; gap:8px;}
+  .srow-caret{font-size:11px; color:var(--faint); width:12px; transition:transform .15s;}
+  .srow.open .srow-caret{transform:rotate(90deg);}
+  .srow-name{flex:1; font-size:13px; color:var(--ink);}
+  .srow-name .live{color:var(--accent); font-size:10px; margin-left:6px;}
+  .srow-meta{font-size:11px; color:var(--dim);}
+  .srow-sub{display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--faint);}
+  .srow-sub .sl{color:var(--good);}
+  .srow-runs{margin-top:10px;}
+  .srow-del{margin-top:9px; text-align:center; font-size:11px; color:color-mix(in srgb,var(--warn) 70%,transparent); padding:7px 0; border:0.5px solid color-mix(in srgb,var(--warn) 25%,transparent); border-radius:7px;}
   .prose{padding:6px 18px 16px; font-size:13px; line-height:1.75; color:var(--dim);}
   .prose h3{color:var(--ink); font-size:14px; font-weight:500; margin:16px 0 4px; letter-spacing:1px;}
   .prose b{color:var(--ink); font-weight:400;}
@@ -123,6 +134,10 @@
   .opt{background:var(--hull2); border:0.5px solid var(--edge); border-radius:10px; padding:14px 12px; font-size:14px; color:var(--ink); display:flex; align-items:center; gap:9px;}
   .opt.on{border-color:var(--accent);}
   .opt .sw{width:11px; height:11px; border-radius:50%;}
+  .edit-row{display:flex; gap:10px; padding:0 0 4px;}
+  .epill{flex:1; background:var(--hull2); border:0.5px solid var(--edge); border-radius:10px; padding:11px 12px; font-size:13px; color:var(--ink); display:flex; align-items:center; gap:8px; justify-content:center;}
+  .epill .dot{width:9px; height:9px; border-radius:50%; background:var(--accent);}
+  .epill small{color:var(--faint); font-size:9px; letter-spacing:1px; text-transform:uppercase;}
 </style>
 </head>
 <body>
@@ -162,12 +177,12 @@
   <section class="screen" id="screen-stats">
     <div class="ptitle">Stats</div>
     <div class="scope" id="statScope"></div>
+    <div class="filters" id="statSessPick"></div>
     <div class="filters" id="statTierFilter"></div>
     <div class="filters" id="statWxFilter"></div>
     <div class="cards" id="statCards"></div>
     <div id="statRecords"></div>
     <div id="statReco"></div>
-    <div id="statSessions"></div>
   </section>
   <section class="screen" id="screen-guide">
     <div class="ptitle">Guide</div>
@@ -175,7 +190,7 @@
   </section>
   <section class="screen" id="screen-about">
     <div class="ptitle">About</div>
-    <div class="about-v"><div class="bn">EVE Abyss Companion</div><div class="vn">Mobile · v1.0.0</div></div>
+    <div class="about-v"><div class="bn">EVE Abyss Companion</div><div class="vn">Mobile · v1.1.0</div></div>
     <div class="prose" id="aboutBody"></div>
     <div class="lk"><a href="https://github.com/Jakelsza/EAC-Web">GitHub</a><a href="https://ko-fi.com/jakkelsza">Ko-fi</a></div>
     <div class="prose" style="padding-top:4px;">
@@ -200,6 +215,24 @@
   <div class="sheet">
     <h4 id="pickerTitle">Select</h4>
     <div class="opts" id="pickerOpts"></div>
+  </div>
+</div>
+<div class="modal" id="editModal" onclick="if(event.target===this)closeEdit()">
+  <div class="sheet">
+    <h4>Edit run</h4>
+    <div class="edit-row">
+      <div class="epill" id="editTierPill" onclick="editCycleTier()"><span class="dot"></span><span><small>tier</small> <span id="editTierTxt">T0</span></span></div>
+      <div class="epill" id="editWxPill" onclick="editCycleWx()"><span class="dot"></span><span><small>weather</small> <span id="editWxTxt">Dark</span></span></div>
+    </div>
+    <div class="loot" style="padding:6px 0;">
+      <div class="field"><label>Before (M)</label><input id="editBefore" type="text" inputmode="decimal" placeholder="—" oninput="editOnLoot()"></div>
+      <div class="field"><label>After (M)</label><input id="editAfter" type="text" inputmode="decimal" placeholder="—" oninput="editOnLoot()"></div>
+      <div class="delta" id="editDelta">—</div>
+    </div>
+    <div class="actions" style="padding:6px 0 0;">
+      <div class="btn danger" onclick="deleteEditing()">Delete</div>
+      <div class="btn good" onclick="saveEdit()">Save</div>
+    </div>
   </div>
 </div>
 <script>
@@ -239,11 +272,37 @@ function load(k,def){var v=store.get(k);if(v==null)return def;try{return JSON.pa
 function save(k,val){store.set(k,JSON.stringify(val));}
 
 var config=load('eac_m_config',{tier:'T0',weather:'Dark',audio:true});
-var runHist=load('eac_m_history',[]);
+var standalone=load('eac_m_history',[]);          /* runs with no session */
+var sessionRuns=load('eac_m_session_runs',null);   /* { sessionId: [runs] } */
+var sessions=load('eac_m_sessions',[]);            /* [ {id,name,target,startTs,endTs} ] */
 var activeSession=load('eac_m_session',null);
-var sessions=load('eac_m_sessions',[]);
+
+/* one-time migration from the old single-pile model */
+if(sessionRuns===null){
+  sessionRuns={};
+  var keep=[];
+  standalone.forEach(function(r){
+    if(r.sessionId){(sessionRuns[r.sessionId]=sessionRuns[r.sessionId]||[]).push(r);}
+    else keep.push(r);
+  });
+  standalone=keep;
+  Object.keys(sessionRuns).forEach(function(id){
+    if(!sessions.some(function(s){return s.id===id;})){
+      var rs=sessionRuns[id];
+      sessions.unshift({id:id,name:'Session',target:0,startTs:rs.length?rs[rs.length-1].ts:Date.now(),endTs:rs.length?rs[0].ts:Date.now()});
+    }
+  });
+  save('eac_m_history',standalone);
+  save('eac_m_session_runs',sessionRuns);
+  save('eac_m_sessions',sessions);
+}
+
 var run={state:'ready',startTs:0,frozen:0,splits:[]};
-var histScope='all', statScope='all', statTier='all', statWx='all';
+var histScope='runs', statScope='all', statTier='all', statWx='all', statSessId=null;
+var expanded={};
+
+function getSessRuns(id){return sessionRuns[id]||[];}
+function allRuns(){var out=standalone.slice();Object.keys(sessionRuns).forEach(function(id){out=out.concat(sessionRuns[id]);});return out;}
 
 function pad(x){return String(x).padStart(2,'0');}
 function fmtMMSS(sec){sec=Math.max(0,Math.round(sec));return pad(Math.floor(sec/60))+':'+pad(sec%60);}
@@ -317,16 +376,34 @@ function submitRun(){
   var b=parseNum(document.getElementById('lootBefore').value),a=parseNum(document.getElementById('lootAfter').value);
   var delta=(!isNaN(b)&&!isNaN(a))?a-b:null;
   var r={id:'r'+Date.now()+Math.floor(Math.random()*1000),ts:Date.now(),tier:config.tier,weather:config.weather,rooms:run.splits.length,elapsedSec:el,splits:run.splits.slice(),before:isNaN(b)?null:b,after:isNaN(a)?null:a,delta:delta,sessionId:activeSession?activeSession.id:null};
-  runHist.unshift(r);save('eac_m_history',runHist);
-  if(activeSession){var done=runHist.filter(function(h){return h.sessionId===activeSession.id;}).length;if(activeSession.target>0&&done>=activeSession.target)finishSession();else save('eac_m_session',activeSession);}
+  if(activeSession){
+    (sessionRuns[activeSession.id]=sessionRuns[activeSession.id]||[]).unshift(r);
+    save('eac_m_session_runs',sessionRuns);
+    var done=sessionRuns[activeSession.id].length;
+    if(activeSession.target>0&&done>=activeSession.target)finishSession();
+  }else{
+    standalone.unshift(r);save('eac_m_history',standalone);
+  }
   stopTimer();
   var carry=isNaN(a)?'':String(a);
   run={state:'ready',startTs:0,frozen:0,splits:[]};
   document.getElementById('lootBefore').value=carry;document.getElementById('lootAfter').value='';
   onLoot();updateTimer();renderRun();
 }
-function startSession(){var name=document.getElementById('sessName').value.trim(),target=parseInt(document.getElementById('sessTarget').value,10);activeSession={id:'s'+Date.now(),name:name,target:isNaN(target)?0:target,startTs:Date.now()};save('eac_m_session',activeSession);renderRun();}
-function finishSession(){if(!activeSession)return;var runs=runHist.filter(function(h){return h.sessionId===activeSession.id;}),st=computeStats(runs);sessions.unshift({id:activeSession.id,name:activeSession.name,target:activeSession.target,startTs:activeSession.startTs,endTs:Date.now(),runCount:runs.length,totalLoot:st.totalLoot||0,iskHr:st.iskHr||0,avgRun:st.avgRun||0});save('eac_m_sessions',sessions);activeSession=null;save('eac_m_session',activeSession);renderRun();}
+function startSession(){
+  var name=document.getElementById('sessName').value.trim(),target=parseInt(document.getElementById('sessTarget').value,10);
+  var s={id:'s'+Date.now(),name:name,target:isNaN(target)?0:target,startTs:Date.now(),endTs:null};
+  sessions.unshift(s);sessionRuns[s.id]=[];activeSession=s;
+  save('eac_m_sessions',sessions);save('eac_m_session_runs',sessionRuns);save('eac_m_session',activeSession);
+  renderRun();
+}
+function finishSession(){
+  if(!activeSession)return;
+  for(var i=0;i<sessions.length;i++){if(sessions[i].id===activeSession.id){sessions[i].endTs=Date.now();break;}}
+  save('eac_m_sessions',sessions);
+  activeSession=null;save('eac_m_session',activeSession);
+  renderRun();
+}
 
 var pickerKind='tier';
 function openPicker(kind){if(run.state!=='ready')return;pickerKind=kind;document.getElementById('pickerTitle').textContent=kind==='tier'?'Select tier':'Select weather';var opts=kind==='tier'?TIERS:WEATHERS,cur=kind==='tier'?config.tier:config.weather,html='';for(var i=0;i<opts.length;i++){var o=opts[i],sw=tierWeatherAccent(kind==='tier'?o:config.tier,kind==='tier'?config.weather:o);html+='<div class="opt'+(o===cur?' on':'')+'" onclick="choose(\''+o+'\')"><span class="sw" style="background:'+sw+'"></span>'+o+'</div>';}document.getElementById('pickerOpts').innerHTML=html;document.getElementById('picker').classList.add('open');}
@@ -342,78 +419,168 @@ function renderRun(){
 }
 function renderRooms(){var dur=perRoomSplits(run.splits),html='';for(var i=0;i<3;i++){var done=i<run.splits.length,t=done?fmtMMSS(dur[i]):'—';html+='<div class="room'+(done?' done':'')+'" onclick="tapRoom('+i+')">R'+(i+1)+(done?' ✓':'')+'<div class="rt">'+t+'</div></div>';}document.getElementById('rooms').innerHTML=html;}
 function renderActions(){var el=document.getElementById('actions'),s=run.state,h='';if(s==='ready')h='<div class="btn primary" onclick="startRun()">▶ Start</div>';else if(s==='running')h='<div class="btn danger" onclick="endRun()">■ End</div>';else h='<div class="btn" onclick="resumeRun()">▶ Resume</div><div class="btn danger" onclick="discardRun()">✕ Discard</div><div class="btn good" onclick="submitRun()">✓ Submit</div>';el.innerHTML=h;}
-function renderLast(){var el=document.getElementById('lastRun');if(!runHist.length){el.style.display='none';return;}el.style.display='block';var r=runHist[0];el.innerHTML='Last run — <b>'+r.tier+' '+r.weather+'</b> · '+r.rooms+'/3 · '+fmtDur(r.elapsedSec)+(r.delta!=null?' · <span class="ll">'+fmtDelta(r.delta)+'</span>':'');}
+function renderLast(){var el=document.getElementById('lastRun');var last=activeSession?(sessionRuns[activeSession.id]||[])[0]:standalone[0];if(!last){el.style.display='none';return;}el.style.display='block';el.innerHTML='Last run — <b>'+last.tier+' '+last.weather+'</b> · '+last.rooms+'/3 · '+fmtDur(last.elapsedSec)+(last.delta!=null?' · <span class="ll">'+fmtDelta(last.delta)+'</span>':'');}
 function renderSessBox(){
   var el=document.getElementById('sessBox');
   if(activeSession){
-    var done=runHist.filter(function(h){return h.sessionId===activeSession.id;}).length,tgt=activeSession.target,pct=tgt>0?Math.min(100,Math.round(done/tgt*100)):0;
+    var done=(sessionRuns[activeSession.id]||[]).length,tgt=activeSession.target,pct=tgt>0?Math.min(100,Math.round(done/tgt*100)):0;
     el.innerHTML='<div class="sess"><div class="sh">Active session</div><div class="pinfo"><span class="pname">'+(activeSession.name||'Session')+'</span><span>'+done+(tgt>0?' / '+tgt:'')+' runs</span></div>'+(tgt>0?'<div class="prog-track"><div class="prog-fill" style="width:'+pct+'%"></div></div>':'<div style="height:8px"></div>')+'<div class="sess-row"><div class="btn" style="flex:1" onclick="finishSession()">Finish session</div></div></div>';
   }else{
     el.innerHTML='<div class="sess"><div class="sh">New session</div><div class="sess-row"><input id="sessName" type="text" placeholder="name (optional)"><input id="sessTarget" type="number" inputmode="numeric" placeholder="10"><div class="btn" onclick="startSession()">Start</div></div></div>';
   }
 }
-function getScopedRuns(scope){if(scope==='session'&&activeSession)return runHist.filter(function(h){return h.sessionId===activeSession.id;});return runHist;}
+
+function runRowHtml(r,scope,sessionId,records){
+  var f=recordFlags(records,r),cls=f.t?'rt':(f.l?'rl':(f.c?'rc':'')),bdg='';
+  if(f.t)bdg+='<span class="bdg t">T</span>';if(f.l)bdg+='<span class="bdg l">$</span>';if(f.c)bdg+='<span class="bdg c">★</span>';
+  var sid=sessionId?("'"+sessionId+"'"):'null';
+  return '<div class="row '+cls+'"><div class="row-top"><div class="row-tw">'+r.tier+' · '+r.weather+(bdg?' <span class="badges">'+bdg+'</span>':'')+'</div><div class="row-loot'+(r.delta==null?' none':'')+'">'+fmtDelta(r.delta)+'</div></div>'
+    +'<div class="row-bot"><div class="row-time">'+fmtDur(r.elapsedSec)+'</div><div class="row-splits">'+(r.splits.length?fmtSplits(r.splits):'—')+'</div><div class="row-date">'+fmtDate(r.ts)+'</div></div>'
+    +'<div class="row-act"><div class="ra" onclick="openEdit(\''+scope+'\','+sid+',\''+r.id+'\')">Edit</div><div class="ra del" onclick="deleteRun(\''+scope+'\','+sid+',\''+r.id+'\')">Delete</div></div></div>';
+}
+
 function renderHistory(){
   var sc=document.getElementById('histScope');
-  sc.innerHTML='<div class="sc'+(histScope==='all'?' on':'')+'" onclick="setHistScope(\'all\')">All runs</div><div class="sc'+(histScope==='session'?' on':'')+'" onclick="setHistScope(\'session\')">This session</div>';
-  var runs=getScopedRuns(histScope),list=document.getElementById('histList');
-  if(!runs.length){list.innerHTML='<div class="empty">'+(histScope==='session'&&!activeSession?'No active session.<br>Start one on the Run tab.':'No runs logged yet.<br>Complete a run to see it here.')+'</div>';return;}
-  var records=computeRecords(runHist),html='<div class="psub">'+runs.length+' run'+(runs.length>1?'s':'')+'</div>';
-  for(var i=0;i<runs.length;i++){
-    var r=runs[i],f=recordFlags(records,r),cls=f.t?'rt':(f.l?'rl':(f.c?'rc':'')),bdg='';
-    if(f.t)bdg+='<span class="bdg t">T</span>';if(f.l)bdg+='<span class="bdg l">$</span>';if(f.c)bdg+='<span class="bdg c">★</span>';
-    html+='<div class="row '+cls+'"><div class="row-top"><div class="row-tw">'+r.tier+' · '+r.weather+(bdg?' <span class="badges">'+bdg+'</span>':'')+'</div><div class="row-loot'+(r.delta==null?' none':'')+'">'+fmtDelta(r.delta)+'</div></div><div class="row-bot"><div class="row-time">'+fmtDur(r.elapsedSec)+'</div><div class="row-splits">'+(r.splits.length?fmtSplits(r.splits):'—')+'</div><div class="row-date">'+fmtDate(r.ts)+'</div></div></div>';
+  sc.innerHTML='<div class="sc'+(histScope==='runs'?' on':'')+'" onclick="setHistScope(\'runs\')">Runs</div><div class="sc'+(histScope==='sessions'?' on':'')+'" onclick="setHistScope(\'sessions\')">Sessions</div>';
+  var list=document.getElementById('histList'),records=computeRecords(allRuns()),html='';
+  if(histScope==='runs'){
+    if(!standalone.length){list.innerHTML='<div class="empty">No standalone runs yet.<br>Runs done outside a session show here.</div>';return;}
+    html='<div class="psub">'+standalone.length+' run'+(standalone.length>1?'s':'')+'</div>';
+    for(var i=0;i<standalone.length;i++)html+=runRowHtml(standalone[i],'standalone',null,records);
+    list.innerHTML=html;
+  }else{
+    if(!sessions.length){list.innerHTML='<div class="empty">No sessions yet.<br>Start one on the Run tab.</div>';return;}
+    html='<div class="psub">'+sessions.length+' session'+(sessions.length>1?'s':'')+'</div>';
+    for(var j=0;j<sessions.length;j++){
+      var s=sessions[j],rs=getSessRuns(s.id),st=computeStats(rs),isOpen=!!expanded[s.id],live=(activeSession&&activeSession.id===s.id);
+      html+='<div class="srow'+(isOpen?' open':'')+(live?' act':'')+'">'
+        +'<div class="srow-head" onclick="toggleSession(\''+s.id+'\')"><span class="srow-caret">▶</span><span class="srow-name">'+(s.name||'Session')+(live?'<span class="live">● live</span>':'')+'</span><span class="srow-meta">'+fmtWhen(s.startTs)+'</span></div>'
+        +'<div class="srow-sub"><span>'+rs.length+' run'+(rs.length===1?'':'s')+(s.target>0?' / '+s.target:'')+'</span><span class="sl">'+fmtM(st.totalLoot||0)+' · '+fmtM(st.iskHr||0)+'/hr</span></div>';
+      if(isOpen){
+        html+='<div class="srow-runs">';
+        if(!rs.length)html+='<div class="empty" style="padding:18px">No runs in this session yet.</div>';
+        else for(var k=0;k<rs.length;k++)html+=runRowHtml(rs[k],'session',s.id,records);
+        html+='<div class="srow-del" onclick="deleteSession(\''+s.id+'\')">Delete session</div>';
+        html+='</div>';
+      }
+      html+='</div>';
+    }
+    list.innerHTML=html;
   }
-  list.innerHTML=html;
 }
 function setHistScope(s){histScope=s;renderHistory();}
+function toggleSession(id){expanded[id]=!expanded[id];renderHistory();}
 
 function renderStats(){
-  document.getElementById('statScope').innerHTML='<div class="sc'+(statScope==='all'?' on':'')+'" onclick="setStatScope(\'all\')">All time</div><div class="sc'+(statScope==='session'?' on':'')+'" onclick="setStatScope(\'session\')">This session</div>';
-  var base=getScopedRuns(statScope),tiersPresent=[];base.forEach(function(r){if(tiersPresent.indexOf(r.tier)<0)tiersPresent.push(r.tier);});tiersPresent.sort();
-  var tf='<div class="chip'+(statTier==='all'?' on':'')+'" onclick="setStatTier(\'all\')">All tiers</div>';
-  tiersPresent.forEach(function(t){tf+='<div class="chip'+(statTier===t?' on':'')+'" onclick="setStatTier(\''+t+'\')">'+t+'</div>';});
-  document.getElementById('statTierFilter').innerHTML=tf;
-  var wxEl=document.getElementById('statWxFilter');
-  if(statTier!=='all'){
-    var wxPresent=[];base.forEach(function(r){if(r.tier===statTier&&wxPresent.indexOf(r.weather)<0)wxPresent.push(r.weather);});
-    var wf='<div class="chip'+(statWx==='all'?' on':'')+'" onclick="setStatWx(\'all\')">All weather</div>';
-    wxPresent.forEach(function(w){wf+='<div class="chip'+(statWx===w?' on':'')+'" onclick="setStatWx(\''+w+'\')">'+w+'</div>';});
-    wxEl.innerHTML=wf;wxEl.style.display='flex';
-  }else{wxEl.innerHTML='';wxEl.style.display='none';}
-  var runs=base.filter(function(r){return (statTier==='all'||r.tier===statTier)&&(statWx==='all'||r.weather===statWx);});
+  document.getElementById('statScope').innerHTML='<div class="sc'+(statScope==='all'?' on':'')+'" onclick="setStatScope(\'all\')">All time</div><div class="sc'+(statScope==='session'?' on':'')+'" onclick="setStatScope(\'session\')">Session</div>';
+  var pick=document.getElementById('statSessPick'),tierEl=document.getElementById('statTierFilter'),wxEl=document.getElementById('statWxFilter');
+  var base,heading=null;
+  if(statScope==='session'){
+    tierEl.innerHTML='';tierEl.style.display='none';wxEl.innerHTML='';wxEl.style.display='none';
+    if(!sessions.length){pick.innerHTML='';pick.style.display='none';
+      document.getElementById('statCards').innerHTML='<div class="empty" style="grid-column:1/3">No sessions yet.</div>';
+      document.getElementById('statRecords').innerHTML='';document.getElementById('statReco').innerHTML='';return;}
+    if(!statSessId||!sessions.some(function(s){return s.id===statSessId;}))statSessId=sessions[0].id;
+    var pj='';sessions.forEach(function(s){pj+='<div class="chip'+(statSessId===s.id?' on':'')+'" onclick="setStatSess(\''+s.id+'\')">'+(s.name||'Session')+'</div>';});
+    pick.innerHTML=pj;pick.style.display='flex';
+    base=getSessRuns(statSessId);
+  }else{
+    pick.innerHTML='';pick.style.display='none';
+    base=allRuns();
+    var tiersPresent=[];base.forEach(function(r){if(tiersPresent.indexOf(r.tier)<0)tiersPresent.push(r.tier);});tiersPresent.sort();
+    var tf='<div class="chip'+(statTier==='all'?' on':'')+'" onclick="setStatTier(\'all\')">All tiers</div>';
+    tiersPresent.forEach(function(t){tf+='<div class="chip'+(statTier===t?' on':'')+'" onclick="setStatTier(\''+t+'\')">'+t+'</div>';});
+    tierEl.innerHTML=tf;tierEl.style.display='flex';
+    if(statTier!=='all'){
+      var wxPresent=[];base.forEach(function(r){if(r.tier===statTier&&wxPresent.indexOf(r.weather)<0)wxPresent.push(r.weather);});
+      var wf='<div class="chip'+(statWx==='all'?' on':'')+'" onclick="setStatWx(\'all\')">All weather</div>';
+      wxPresent.forEach(function(w){wf+='<div class="chip'+(statWx===w?' on':'')+'" onclick="setStatWx(\''+w+'\')">'+w+'</div>';});
+      wxEl.innerHTML=wf;wxEl.style.display='flex';
+    }else{wxEl.innerHTML='';wxEl.style.display='none';}
+  }
+  var runs=(statScope==='session')?base:base.filter(function(r){return (statTier==='all'||r.tier===statTier)&&(statWx==='all'||r.weather===statWx);});
   var st=computeStats(runs),cards=document.getElementById('statCards');
   if(!st.count){
     document.getElementById('statRecords').innerHTML='';document.getElementById('statReco').innerHTML='';
-    document.getElementById('statSessions').innerHTML=(statScope==='all')?sessionHistoryHtml():'';
-    cards.innerHTML='<div class="empty" style="grid-column:1/3">'+(statScope==='session'&&!activeSession?'No active session.':'No runs in this filter.')+'</div>';
+    cards.innerHTML='<div class="empty" style="grid-column:1/3">No runs in this view.</div>';
     return;
   }
   cards.innerHTML=card('Runs',st.count)+card('Total time',fmtDur(st.totalTime))+card('Avg run',fmtDur(st.avgRun))+card('Best run',st.best?fmtDur(st.best.elapsedSec)+'<br><small>'+st.best.tier+' '+st.best.weather+'</small>':'—')+card('Total loot',fmtM(st.totalLoot))+card('Avg loot',fmtM(st.avgLoot))+card('ISK / hour',fmtM(st.iskHr),true);
-  var records=computeRecords(runs),rk=Object.keys(records).sort(),rh='<div class="sec-h">Records — best per tier + weather</div>';
+  var recs=computeRecords(runs),rk=Object.keys(recs).sort(),rh='<div class="sec-h">Records — best per tier + weather</div>';
   if(!rk.length)rh+='<div class="empty">—</div>';
-  rk.forEach(function(k){var e=records[k],parts=k.split('|');rh+='<div class="mini"><div class="mini-top"><span>'+parts[0]+' · '+parts[1]+'</span></div><div class="mini-grid"><span>time <b class="best">'+fmtDur(e.bestTime)+'</b></span><span>loot <b class="best">'+fmtDelta(e.bestLoot)+'</b></span><span>isk/hr <b class="best">'+fmtM(e.bestEff)+'</b></span></div></div>';});
+  rk.forEach(function(k){var e=recs[k],parts=k.split('|');rh+='<div class="mini"><div class="mini-top"><span>'+parts[0]+' · '+parts[1]+'</span></div><div class="mini-grid"><span>time <b class="best">'+fmtDur(e.bestTime)+'</b></span><span>loot <b class="best">'+fmtDelta(e.bestLoot)+'</b></span><span>isk/hr <b class="best">'+fmtM(e.bestEff)+'</b></span></div></div>';});
   document.getElementById('statRecords').innerHTML=rh;
   var reco=computeRecommendations(runs),tk=Object.keys(reco).sort(),ch='<div class="sec-h">What pays best — from your runs</div>';
   tk.forEach(function(tier){ch+='<div class="mini"><div class="mini-top"><span>'+tier+'</span></div>';reco[tier].forEach(function(row,idx){ch+='<div class="mini-grid" style="margin-top:'+(idx?6:0)+'px"><span style="min-width:74px;color:'+(idx===0?'var(--good)':'var(--dim)')+'">'+row.weather+(idx===0?' ★':'')+'</span><span><b>'+row.runs+'</b> runs</span><span>avg <b>'+fmtM(row.avgLoot)+'</b></span><span>isk/hr <b>'+fmtM(row.iskHr)+'</b></span></div>';});ch+='</div>';});
   document.getElementById('statReco').innerHTML=ch;
-  document.getElementById('statSessions').innerHTML=(statScope==='all')?sessionHistoryHtml():'';
 }
-function sessionHistoryHtml(){if(!sessions.length)return '';var h='<div class="sec-h">Session history</div>';sessions.forEach(function(s){h+='<div class="sess-hrow"><div class="sht"><span class="shn">'+(s.name||'Session')+'</span><span class="shd">'+fmtWhen(s.startTs)+'</span></div><div class="shstat">'+s.runCount+' runs · '+fmtM(s.totalLoot)+' · '+fmtM(s.iskHr)+'/hr</div></div>';});return h;}
 function card(label,val,accent){return '<div class="card"><div class="cl">'+label+'</div><div class="cv'+(accent?' accent':'')+'">'+val+'</div></div>';}
 function setStatScope(s){statScope=s;statTier='all';statWx='all';renderStats();}
 function setStatTier(t){statTier=t;statWx='all';renderStats();}
 function setStatWx(w){statWx=w;renderStats();}
+function setStatSess(id){statSessId=id;renderStats();}
+
+/* ---- edit / delete ---- */
+var editing=null,editTier='T0',editWx='Dark';
+function findRun(scope,sessionId,runId){
+  var arr=scope==='session'?getSessRuns(sessionId):standalone;
+  for(var i=0;i<arr.length;i++)if(arr[i].id===runId)return {arr:arr,idx:i,run:arr[i]};
+  return null;
+}
+function editAccent(){var c=tierWeatherAccent(editTier,editWx);document.querySelectorAll('#editModal .epill .dot').forEach(function(d){d.style.background=c;});}
+function openEdit(scope,sessionId,runId){
+  var found=findRun(scope,sessionId,runId);if(!found)return;
+  editing={scope:scope,sessionId:sessionId,runId:runId};
+  editTier=found.run.tier;editWx=found.run.weather;
+  document.getElementById('editTierTxt').textContent=editTier;
+  document.getElementById('editWxTxt').textContent=editWx;
+  document.getElementById('editBefore').value=(found.run.before==null?'':found.run.before);
+  document.getElementById('editAfter').value=(found.run.after==null?'':found.run.after);
+  editOnLoot();editAccent();
+  document.getElementById('editModal').classList.add('open');
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');editing=null;}
+function editCycleTier(){editTier=TIERS[(TIERS.indexOf(editTier)+1)%TIERS.length];document.getElementById('editTierTxt').textContent=editTier;editAccent();}
+function editCycleWx(){editWx=WEATHERS[(WEATHERS.indexOf(editWx)+1)%WEATHERS.length];document.getElementById('editWxTxt').textContent=editWx;editAccent();}
+function editOnLoot(){var b=parseNum(document.getElementById('editBefore').value),a=parseNum(document.getElementById('editAfter').value),d=document.getElementById('editDelta');if(!isNaN(b)&&!isNaN(a)){var v=a-b;d.textContent=fmtDelta(v);d.classList.toggle('neg',v<0);}else{d.textContent='—';d.classList.remove('neg');}}
+function persist(scope){if(scope==='session')save('eac_m_session_runs',sessionRuns);else save('eac_m_history',standalone);}
+function saveEdit(){
+  if(!editing)return;
+  var found=findRun(editing.scope,editing.sessionId,editing.runId);if(!found){closeEdit();return;}
+  var b=parseNum(document.getElementById('editBefore').value),a=parseNum(document.getElementById('editAfter').value);
+  var r=found.run;
+  r.tier=editTier;r.weather=editWx;
+  r.before=isNaN(b)?null:b;r.after=isNaN(a)?null:a;
+  r.delta=(!isNaN(b)&&!isNaN(a))?a-b:null;
+  persist(editing.scope);
+  closeEdit();renderHistory();renderStats();renderRun();
+}
+function deleteEditing(){if(!editing)return;var e=editing;closeEdit();deleteRun(e.scope,e.sessionId,e.runId);}
+function deleteRun(scope,sessionId,runId){
+  if(!confirm('Delete this run? This cannot be undone.'))return;
+  var found=findRun(scope,sessionId,runId);if(!found)return;
+  found.arr.splice(found.idx,1);persist(scope);
+  renderHistory();renderStats();renderRun();
+}
+function deleteSession(id){
+  if(!confirm('Delete this whole session and all its runs? This cannot be undone.'))return;
+  sessions=sessions.filter(function(s){return s.id!==id;});
+  delete sessionRuns[id];delete expanded[id];
+  if(activeSession&&activeSession.id===id){activeSession=null;save('eac_m_session',activeSession);}
+  if(statSessId===id)statSessId=null;
+  save('eac_m_sessions',sessions);save('eac_m_session_runs',sessionRuns);
+  renderHistory();renderStats();renderRun();
+}
 
 function renderGuide(){
-  document.getElementById('guideBody').innerHTML='<h3>The basics</h3>Each Abyssal pocket gives you <b>20 minutes</b> across three rooms. The timer counts down the moment you take the gate — tap <b>Start</b> as you enter. If the timer hits zero before you exit the third room, your ship is destroyed.<h3>Using this app</h3>Set your <b>tier</b> and <b>weather</b> by tapping the pills, then tap <b>Start</b>. Tap <b>R1 / R2 / R3</b> as you clear each room to log your split times. Enter your cargo value <b>before</b> and <b>after</b> to track loot. Tap <b>End</b> when you exit, then <b>Submit</b> to save the run.<h3>Sessions</h3>Start a session with a target run count to track a farming block separately. History and Stats can filter to just that session.<h3>Weather colours</h3><span class="tag" style="background:#9B6BFF22;color:#9B6BFF">Dark</span><span class="tag" style="background:#FFD23F22;color:#FFD23F">Electrical</span><span class="tag" style="background:#2EE6A622;color:#2EE6A6">Exotic</span><span class="tag" style="background:#FF6A3D22;color:#FF6A3D">Firestorm</span><span class="tag" style="background:#7CE04A22;color:#7CE04A">Gamma</span><br><br>The timer ring and accents shift colour with your selected tier and weather. The ring turns <b style="color:var(--warn)">red under 5 minutes</b> and pulses under one minute.<h3>Stay alive</h3>Keep moving — sitting still stacks incoming damage. Do not overheat your modules for too long or they burn out when you need them most. Watch the clock on every room.';
+  document.getElementById('guideBody').innerHTML='<h3>The basics</h3>Each Abyssal pocket gives you <b>20 minutes</b> across three rooms. The timer counts down the moment you take the gate — tap <b>Start</b> as you enter. If the timer hits zero before you exit the third room, your ship is destroyed.<h3>Using this app</h3>Set your <b>tier</b> and <b>weather</b> by tapping the pills, then tap <b>Start</b>. Tap <b>R1 / R2 / R3</b> as you clear each room to log your split times — tapping <b>R3</b> stops the timer automatically. Enter your cargo value <b>before</b> and <b>after</b> to track loot (comma or dot both work). Tap <b>Submit</b> to save the run.<h3>Sessions</h3>Start a session with a target run count to track a farming block separately. Its runs are stored on their own — open the <b>Sessions</b> tab in History to see every run in a session, and pick a session under Stats to see just its numbers.<h3>Editing</h3>On any run in History tap <b>Edit</b> to fix the loot, tier or weather afterwards, or <b>Delete</b> to remove it. Whole sessions can be deleted from the Sessions list.<h3>Weather colours</h3><span class="tag" style="background:#9B6BFF22;color:#9B6BFF">Dark</span><span class="tag" style="background:#FFD23F22;color:#FFD23F">Electrical</span><span class="tag" style="background:#2EE6A622;color:#2EE6A6">Exotic</span><span class="tag" style="background:#FF6A3D22;color:#FF6A3D">Firestorm</span><span class="tag" style="background:#7CE04A22;color:#7CE04A">Gamma</span><br><br>The timer ring and accents shift colour with your selected tier and weather. The ring turns <b style="color:var(--warn)">red under 5 minutes</b> and pulses under one minute.<h3>Stay alive</h3>Keep moving — sitting still stacks incoming damage. Do not overheat your modules for too long or they burn out when you need them most. Watch the clock on every room.';
 }
 function renderAbout(){
   document.getElementById('audioToggle').textContent=config.audio?'On':'Off';
   document.getElementById('aboutBody').innerHTML='A free, manual companion for EVE Online Abyssal Deadspace runs. Track your timer, room splits, loot and stats from your phone while you fly on PC.<br><br>This mobile version is <b>fully manual</b> — it does not read your EVE client, your files, or anything on your computer. Nothing leaves your phone; all data stays in your browser. Fully EULA compliant.<br><br>The desktop edition adds automatic NPC detection from your combat log and an always-on-top overlay.';
 }
 function toggleAudio(){config.audio=!config.audio;save('eac_m_config',config);renderAbout();}
-function resetAll(){if(!confirm('Reset all runs, sessions and settings? This cannot be undone.'))return;runHist=[];sessions=[];activeSession=null;config={tier:'T0',weather:'Dark',audio:true};save('eac_m_history',runHist);save('eac_m_sessions',sessions);save('eac_m_session',activeSession);save('eac_m_config',config);applyAccent();discardRun();go('run');}
+function resetAll(){if(!confirm('Reset all runs, sessions and settings? This cannot be undone.'))return;standalone=[];sessionRuns={};sessions=[];activeSession=null;expanded={};statSessId=null;config={tier:'T0',weather:'Dark',audio:true};save('eac_m_history',standalone);save('eac_m_session_runs',sessionRuns);save('eac_m_sessions',sessions);save('eac_m_session',activeSession);save('eac_m_config',config);applyAccent();discardRun();go('run');}
 
 function go(screen){
   var items=document.querySelectorAll('.nav-item');
@@ -428,12 +595,13 @@ function go(screen){
   else if(screen==='about')renderAbout();
 }
 
-/* expose handlers for inline onclick (robust even if wrapped) */
 window.openPicker=openPicker;window.closePicker=closePicker;window.choose=choose;
 window.startRun=startRun;window.endRun=endRun;window.resumeRun=resumeRun;window.discardRun=discardRun;
 window.tapRoom=tapRoom;window.onLoot=onLoot;window.submitRun=submitRun;
 window.startSession=startSession;window.finishSession=finishSession;
-window.setHistScope=setHistScope;window.setStatScope=setStatScope;window.setStatTier=setStatTier;window.setStatWx=setStatWx;
+window.setHistScope=setHistScope;window.toggleSession=toggleSession;
+window.setStatScope=setStatScope;window.setStatTier=setStatTier;window.setStatWx=setStatWx;window.setStatSess=setStatSess;
+window.openEdit=openEdit;window.closeEdit=closeEdit;window.editCycleTier=editCycleTier;window.editCycleWx=editCycleWx;window.editOnLoot=editOnLoot;window.saveEdit=saveEdit;window.deleteEditing=deleteEditing;window.deleteRun=deleteRun;window.deleteSession=deleteSession;
 window.toggleAudio=toggleAudio;window.resetAll=resetAll;window.go=go;
 
 applyAccent();
