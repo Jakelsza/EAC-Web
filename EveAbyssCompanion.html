@@ -579,11 +579,47 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
   font-size: 9px; font-weight: 700; font-family: var(--sans); color: #04060A;
 }
 .rb-t { background: var(--good); }
-.rb-l { background: var(--gold); }
+.rb-l { background: #ffffff; }
 .rb-c { background: var(--accent); }
 .recKey { font-size: 10.5px; color: var(--dim); letter-spacing: .04em; display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap; }
 .recKey .rb { width: 13px; height: 13px; }
 .recKeyNote { color: var(--faint); }
+
+/* loss runs: the left border is reserved for losses, records live in the badges */
+tr.lossRow { box-shadow: inset 3px 0 0 var(--bad); }
+tr.lossRow td:first-child { background: color-mix(in oklab, var(--bad) 7%, transparent); }
+
+/* per-run edit/delete buttons */
+td.rowActs { white-space: nowrap; text-align: right; }
+.iconBtn {
+  border: 1px solid var(--edge); background: var(--surface-2, transparent); color: var(--dim);
+  border-radius: 5px; width: 24px; height: 24px; line-height: 1; cursor: pointer;
+  font-size: 12px; margin-left: 4px; padding: 0;
+}
+.iconBtn:hover { color: var(--text); border-color: var(--edge-2); }
+.iconBtn.del:hover { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 50%, var(--edge)); }
+
+/* tier/weather locked during a run */
+[data-seg].locked { opacity: .55; }
+.segBtn:disabled { cursor: not-allowed; }
+.segBtn:disabled:hover { color: var(--dim); border-color: var(--edge); }
+
+/* edit-run modal */
+.editModal { position: fixed; inset: 0; z-index: 120; display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklab, #000 62%, transparent); padding: 18px; }
+.editModal[hidden] { display: none; }
+.editCard { width: 360px; max-width: 100%; background: var(--panel, #11141b); border: 1px solid var(--edge-2, #2a2e38);
+  border-radius: 12px; padding: 16px; box-shadow: 0 18px 60px rgba(0,0,0,.55); }
+.editHead { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+.editGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.editGrid label { display: flex; flex-direction: column; gap: 4px; font-size: 10px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--faint); }
+.editGrid select, .editGrid input { background: var(--surface-2, #1a1d24); border: 1px solid var(--edge); color: var(--text);
+  border-radius: 7px; padding: 8px 9px; font-family: var(--mono); font-size: 14px; outline: none; }
+.editDeltaRow { margin: 12px 0 14px; font-family: var(--mono); font-size: 13px; color: var(--dim); }
+.editDeltaRow b.up { color: var(--good); } .editDeltaRow b.dn { color: var(--bad); }
+.editBtns { display: flex; gap: 8px; justify-content: flex-end; }
+.btn.good { border-color: color-mix(in oklab, var(--good) 45%, var(--edge)); color: var(--good); }
 
 /* ---- stats: scope + filters ---- */
 .statScope { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -786,14 +822,19 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 
       <div class="tabPane" id="tab-hist">
         <div class="barRow">
-          <button class="btn mini danger" data-action="clearHistory">Clear history…</button>
+          <button class="btn mini danger" data-action="clearHistory">Clear runs…</button>
           <span class="histCount" id="histCount"></span>
           <span class="recKey"><i class="rb rb-t">T</i> best time <i class="rb rb-l">$</i> best loot <i class="rb rb-c">★</i> best ISK/hr <span class="recKeyNote">· per tier + weather</span></span>
         </div>
-        <div class="tblWrap"><table class="data">
-          <thead><tr><th>Time</th><th>Tier</th><th>Weather</th><th>Rooms</th><th>Elapsed</th><th>Remain</th><th>Splits</th><th>Loot (M)</th></tr></thead>
+        <div class="filterRow" id="histView">
+          <button class="btn mini filtBtn toggleOn" data-histview="runs">Runs</button>
+          <button class="btn mini filtBtn" data-histview="sessions">Sessions</button>
+        </div>
+        <div class="tblWrap" id="histTableWrap"><table class="data">
+          <thead><tr><th>Time</th><th>Tier</th><th>Weather</th><th>Rooms</th><th>Elapsed</th><th>Remain</th><th>Splits</th><th>Loot (M)</th><th></th></tr></thead>
           <tbody id="histRows"></tbody>
         </table></div>
+        <div class="sessionList" id="histSessions" hidden></div>
       </div>
 
       <div class="tabPane" id="tab-stats">
@@ -801,9 +842,11 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 
         <div class="statScope">
           <button class="btn mini scopeBtn toggleOn" data-scope="all">All Time</button>
-          <button class="btn mini scopeBtn" data-scope="session">This Session</button>
+          <button class="btn mini scopeBtn" data-scope="session">By Session</button>
           <span class="scopeNote" id="scopeNote"></span>
         </div>
+
+        <div class="filterRow" id="statSessPick" hidden></div>
 
         <div class="filterRow" id="tierFilter"></div>
         <div class="filterRow sub" id="weatherFilter"></div>
@@ -908,7 +951,7 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
       <div class="tabPane" id="tab-about">
         <div class="aboutWrap">
           <h2>EVE Abyss Companion</h2>
-          <div class="tag">v2.1.0 · Web Edition — “Built by capsuleers, for capsuleers.”</div>
+          <div class="tag">v2.2.0 · Web Edition — “Built by capsuleers, for capsuleers.”</div>
           <p>A free companion for Abyssal Deadspace runs. It reads your EVE Online game log files from disk to
             detect NPCs — no memory reading, no game hooks, no injection, no EVE API calls. Everything runs and
             stays on your machine: settings, history and your NPC dataset never leave this file.</p>
@@ -1031,6 +1074,24 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 <div id="toasts"></div>
 <input type="file" id="dsImport" accept=".json,application/json" hidden>
 
+<div class="editModal" id="editModal" hidden>
+  <div class="editCard">
+    <div class="editHead">Edit run</div>
+    <div class="editGrid">
+      <label>Tier<select id="editTier"></select></label>
+      <label>Weather<select id="editWeather"></select></label>
+      <label>Before (M)<input id="editBefore" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></label>
+      <label>After (M)<input id="editAfter" type="text" inputmode="decimal" autocomplete="off" spellcheck="false"></label>
+    </div>
+    <div class="editDeltaRow">Delta: <b id="editDeltaVal" class="dimc">—</b></div>
+    <div class="editBtns">
+      <button class="btn mini" data-action="editCancel">Cancel</button>
+      <button class="btn mini danger" data-action="editDelete">Delete run</button>
+      <button class="btn mini good" data-action="editSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ BUNDLED STARTER DATASET (schema-compatible with npc_dataset.json) ============ -->
 <script type="application/json" id="bundledDataset">
 [
@@ -1138,7 +1199,7 @@ function sanitizeIsk(raw){
   let out = '', dot = false;
   for (const ch of String(raw ?? '')){
     if (ch >= '0' && ch <= '9') out += ch;
-    else if (ch === '.' && !dot){ out += ch; dot = true; }
+    else if ((ch === '.' || ch === ',') && !dot){ out += '.'; dot = true; }
   }
   return out;
 }
@@ -1432,20 +1493,63 @@ function loadDataset(){
   families = Array.from(new Set(dataset.map(e => e.family))).sort();
 }
 
-/* run history */
+/* run history — STANDALONE runs only (runs logged with no active session).
+   Session runs live inside their own session bucket, not in here. */
 let history = store.get('eac.history', []) || [];
 function saveHistory(){ store.set('eac.history', history); }
 
-/* sessions — a named block of N planned runs. Active session tracks run
-   timestamps; finished sessions snapshot their runs for later review. */
-let session = store.get('eac.session', null);           // { name, target, startedTs, runIds:[] } | null
-let sessions = store.get('eac.sessions', []) || [];     // [{ name, target, startedTs, endedTs, runs:[rec...] }]
-function saveSession(){ store.set('eac.session', session); }
+/* sessions — each session OWNS its runs in its own bucket.
+   { id, name, target, startedTs, endedTs(null=active), runs:[rec...] }
+   The active session is simply the one with endedTs === null. */
+let sessions = store.get('eac.sessions', []) || [];
+let session = null;                          // live reference to the active session (or null)
+function saveSession(){ saveSessions(); }    // back-compat: the active session lives inside sessions
 function saveSessions(){ store.set('eac.sessions', sessions); }
-function sessionRuns(){
-  if (!session) return [];
-  const ids = new Set(session.runIds);
-  return history.filter(r => ids.has(r.ts));
+
+/* one-time migration from the old model (history held every run; sessions
+   snapshotted finished runs; active session referenced runs by ts). */
+(function migrateSessions(){
+  let changed = false;
+  const legacyActive = store.get('eac.session', null);
+  sessions.forEach(s => {
+    if (!s.id){ s.id = 's' + (s.startedTs || s.endedTs || Date.now()) + Math.floor(Math.random() * 1e4); changed = true; }
+    if (!Array.isArray(s.runs)){ s.runs = []; changed = true; }
+    if (s.endedTs === undefined){ s.endedTs = Date.now(); changed = true; }
+  });
+  if (legacyActive && Array.isArray(legacyActive.runIds)){
+    const ids = new Set(legacyActive.runIds);
+    const runs = history.filter(r => ids.has(r.ts));
+    sessions.unshift({ id: 's' + (legacyActive.startedTs || Date.now()), name: legacyActive.name || 'Session',
+      target: legacyActive.target || runs.length || 1, startedTs: legacyActive.startedTs || Date.now(), endedTs: null, runs });
+    changed = true;
+  }
+  // pull any session-owned runs out of standalone history (old model duplicated them)
+  const sessTs = new Set();
+  sessions.forEach(s => s.runs.forEach(r => sessTs.add(r.ts)));
+  const before = history.length;
+  history = history.filter(r => !sessTs.has(r.ts));
+  if (history.length !== before) changed = true;
+  // tag each run with its owning session id (standalone stays undefined/null)
+  sessions.forEach(s => s.runs.forEach(r => { if (r.sessionId !== s.id){ r.sessionId = s.id; changed = true; } }));
+  session = sessions.find(s => !s.endedTs) || null;
+  if (changed){ saveHistory(); saveSessions(); store.del('eac.session'); }
+})();
+
+function sessionRuns(){ return session ? session.runs.slice() : []; }
+function allRuns(){ return history.concat(...sessions.map(s => s.runs)); }
+function latestRun(){
+  let best = history[0] || null;
+  for (const s of sessions){ const r = s.runs[0]; if (r && (!best || r.ts > best.ts)) best = r; }
+  return best;
+}
+function findRunRef(id){
+  let i = history.findIndex(r => r.ts === id);
+  if (i >= 0) return { arr: history, idx: i, run: history[i], save: saveHistory };
+  for (const s of sessions){
+    i = s.runs.findIndex(r => r.ts === id);
+    if (i >= 0) return { arr: s.runs, idx: i, run: s.runs[i], save: saveSessions };
+  }
+  return null;
 }
 
 /* live session */
@@ -1586,13 +1690,15 @@ function finalizeRun(){
     elapsed: Math.round(elapsed), remain: Math.round(remain),
     splits: { r1: run.splits.r1, r2: run.splits.r2, r3: run.splits.r3 },
     before: parseIsk(run.before), after: parseIsk(run.after),
-    delta
+    delta,
+    sessionId: session ? session.id : null
   };
-  history.unshift(rec); saveHistory();
   let sessionDone = false;
   if (session){
-    session.runIds.push(rec.ts); saveSession();
-    if (session.runIds.length >= session.target) sessionDone = true;
+    session.runs.unshift(rec); saveSessions();
+    if (session.runs.length >= session.target) sessionDone = true;
+  } else {
+    history.unshift(rec); saveHistory();
   }
   setLastRun(rec);
   finishedUntil = Date.now() + 2200;
@@ -1960,9 +2066,14 @@ function fullRender(){
     n.classList.toggle('show', show);
   });
 
+  const segLocked = run.state !== 'READY';
   qa('[data-seg]').forEach(wrap => {
     const key = wrap.getAttribute('data-seg');
-    wrap.querySelectorAll('.segBtn').forEach(b => b.classList.toggle('on', b.getAttribute('data-val') === config[key]));
+    wrap.classList.toggle('locked', segLocked);
+    wrap.querySelectorAll('.segBtn').forEach(b => {
+      b.classList.toggle('on', b.getAttribute('data-val') === config[key]);
+      b.disabled = segLocked;
+    });
   });
 
   renderLoot();
@@ -2065,42 +2176,82 @@ function fmtDur(sec){
   const s = Math.round(sec), h = Math.floor(s / 3600);
   return h ? `${h}h ${pad2(Math.floor((s % 3600) / 60))}m` : fmtMMSS(s);
 }
+function runRowTr(r, flags){
+  const tr = el('tr');
+  const f = flags[r.ts];
+  if (typeof r.delta === 'number' && r.delta < 0) tr.classList.add('lossRow');  // border reserved for losses
+  const when = el('td', { class: 'dimc' });
+  when.append(fmtWhen(r.ts));
+  if (f){
+    const badges = el('span', { class: 'recBadges' });
+    if (f.has('time'))  badges.append(el('i', { class: 'rb rb-t', title: 'Best time (tier+weather)', text: 'T' }));
+    if (f.has('loot'))  badges.append(el('i', { class: 'rb rb-l', title: 'Best loot (tier+weather)', text: '$' }));
+    if (f.has('combo')) badges.append(el('i', { class: 'rb rb-c', title: 'Best ISK/hr (tier+weather)', text: '★' }));
+    when.append(badges);
+  }
+  const loot = el('td', { text: fmtDelta(r.delta) });
+  loot.className = r.delta != null ? (r.delta >= 0 ? 'up' : 'dn') : 'dimc';
+  const acts = el('td', { class: 'rowActs' },
+    el('button', { class: 'iconBtn', 'data-edit-run': String(r.ts), title: 'Edit run', text: '✎' }),
+    el('button', { class: 'iconBtn del', 'data-del-run': String(r.ts), title: 'Delete run', text: '✕' }));
+  tr.append(
+    when,
+    el('td', { text: r.tier }),
+    el('td', { text: r.weather }),
+    el('td', { text: `${r.rooms}/3` }),
+    el('td', { text: fmtMMSS(r.elapsed) }),
+    el('td', { class: 'dimc', text: fmtMMSS(r.remain) }),
+    el('td', { class: 'dimc', text: fmtSplits(r.splits) || '—' }),
+    loot, acts);
+  return tr;
+}
+function histTable(runs, flags){
+  const tbl = el('table', { class: 'data' },
+    el('thead', null, el('tr', null,
+      el('th', { text: 'Time' }), el('th', { text: 'Tier' }), el('th', { text: 'Weather' }),
+      el('th', { text: 'Rooms' }), el('th', { text: 'Elapsed' }), el('th', { text: 'Remain' }),
+      el('th', { text: 'Splits' }), el('th', { text: 'Loot (M)' }), el('th', { text: '' }))));
+  const body = el('tbody');
+  runs.forEach(r => body.append(runRowTr(r, flags)));
+  tbl.append(body);
+  return el('div', { class: 'tblWrap' }, tbl);
+}
 function renderHistory(){
-  const tb = $('#histRows');
-  const shown = history.slice(0, 200);
-  $('#histCount').textContent = `Runs: ${history.length} (last ${shown.length})`;
-  const flags = recordFlags(computeRecords(history));
-  tb.replaceChildren();
-  for (const r of shown){
-    const tr = el('tr');
-    const f = flags[r.ts];
-    if (f){
-      tr.classList.add('recRow');
-      if (f.has('time')) tr.classList.add('rt');
-      if (f.has('loot')) tr.classList.add('rl');
-      if (f.has('combo')) tr.classList.add('rc');
+  qa('[data-histview]').forEach(b => b.classList.toggle('toggleOn', b.getAttribute('data-histview') === histView));
+  const flags = recordFlags(computeRecords(allRuns()));
+  const tableWrap = $('#histTableWrap'), sessWrap = $('#histSessions');
+  if (histView === 'runs'){
+    tableWrap.hidden = false; sessWrap.hidden = true;
+    const shown = history.slice(0, 200);
+    $('#histCount').textContent = `Standalone runs: ${history.length}`;
+    const tb = $('#histRows'); tb.replaceChildren();
+    if (!shown.length){
+      tb.append(el('tr', null, el('td', { class: 'dimc', colspan: '9', text: 'No standalone runs yet. Runs done outside a session show here.' })));
+    } else {
+      for (const r of shown) tb.append(runRowTr(r, flags));
     }
-    const when = el('td', { class: 'dimc' });
-    when.append(fmtWhen(r.ts));
-    if (f){
-      const badges = el('span', { class: 'recBadges' });
-      if (f.has('time'))  badges.append(el('i', { class: 'rb rb-t', title: 'Best time (tier+weather)', text: 'T' }));
-      if (f.has('loot'))  badges.append(el('i', { class: 'rb rb-l', title: 'Best loot (tier+weather)', text: '$' }));
-      if (f.has('combo')) badges.append(el('i', { class: 'rb rb-c', title: 'Best ISK/hr (tier+weather)', text: '★' }));
-      when.append(badges);
-    }
-    const loot = el('td', { text: fmtDelta(r.delta) });
-    loot.className = r.delta != null ? (r.delta >= 0 ? 'up' : 'dn') : 'dimc';
-    tr.append(
-      when,
-      el('td', { text: r.tier }),
-      el('td', { text: r.weather }),
-      el('td', { text: `${r.rooms}/3` }),
-      el('td', { text: fmtMMSS(r.elapsed) }),
-      el('td', { class: 'dimc', text: fmtMMSS(r.remain) }),
-      el('td', { class: 'dimc', text: fmtSplits(r.splits) || '—' }),
-      loot);
-    tb.append(tr);
+  } else {
+    tableWrap.hidden = true; sessWrap.hidden = false;
+    $('#histCount').textContent = `Sessions: ${sessions.length}`;
+    sessWrap.replaceChildren();
+    if (!sessions.length){ sessWrap.append(el('div', { class: 'recoEmpty', text: 'No sessions yet. Start one on the Stats tab.' })); return; }
+    sessions.forEach(sn => {
+      const st = computeStats(sn.runs), open = histOpenSess === sn.id;
+      const row = el('div', { class: 'sessRow' + (open ? ' open' : ''), 'data-session-id': sn.id },
+        el('span', { class: 'sDate', text: sn.endedTs ? fmtWhen(sn.endedTs) : 'active' }),
+        el('span', { class: 'sName', text: (sn.name || 'Session') + (!sn.endedTs ? ' ●' : '') }),
+        el('span', { class: 'sMeta', text: `${sn.runs.length} run${sn.runs.length !== 1 ? 's' : ''}` }),
+        el('span', { class: 'sMeta up', text: `${st.lootSum.toFixed(1)}M` }),
+        el('span', { class: 'sMeta', text: `${st.iskHr.toFixed(1)}M/hr` }));
+      sessWrap.append(row);
+      if (open){
+        const det = el('div', { class: 'sessDetail openRuns' });
+        if (!sn.runs.length) det.append(el('div', { class: 'recoEmpty', text: 'No runs in this session yet.' }));
+        else det.append(histTable(sn.runs, flags));
+        det.append(el('button', { class: 'btn mini danger', 'data-del-session': sn.id, text: 'Delete session' }));
+        sessWrap.append(det);
+      }
+    });
   }
 }
 function statCard(k, v, good){
@@ -2109,17 +2260,26 @@ function statCard(k, v, good){
 
 /* ---- stats view state ---- */
 let statsScope = 'all';     // 'all' | 'session'
+let statSessId = null;      // when scope==='session', which session id
 let filterTier = null;      // null | 'T0'..'T6'
 let filterWeather = null;   // null | weather
-let openSession = null;     // expanded finished-session index
+let openSession = null;     // stats: selected session id (highlight in list)
+let histView = 'runs';      // history tab: 'runs' | 'sessions'
+let histOpenSess = null;    // history tab: expanded session id
 
-function scopeHistory(){ return statsScope === 'session' ? sessionRuns() : history; }
+function scopeHistory(){
+  if (statsScope === 'session'){
+    const s = sessions.find(x => x.id === statSessId);
+    return s ? s.runs : [];
+  }
+  return allRuns();
+}
 
 function renderSessionBar(){
   const bar = $('#sessionBar'); if (!bar) return;
   bar.replaceChildren();
   if (session){
-    const done = session.runIds.length, tgt = session.target;
+    const done = session.runs.length, tgt = session.target;
     const pct = Math.min(100, Math.round(done / tgt * 100));
     const info = el('div', { class: 'sessInfo' },
       el('span', { class: 'sessName', text: session.name }),
@@ -2144,9 +2304,21 @@ function renderSessionBar(){
 function renderStats(){
   renderSessionBar();
   qa('.scopeBtn').forEach(b => b.classList.toggle('toggleOn', b.getAttribute('data-scope') === statsScope));
-  $('#scopeNote').textContent = statsScope === 'session'
-    ? (session ? `“${session.name}” — ${sessionRuns().length} run(s) so far` : 'No active session — start one above.')
-    : '';
+  const pick = $('#statSessPick');
+  if (pick){
+    if (statsScope === 'session'){
+      pick.hidden = false; pick.replaceChildren();
+      if (!sessions.length){
+        pick.append(el('span', { class: 'scopeNote', text: 'No sessions yet — start one above.' }));
+      } else {
+        if (!statSessId || !sessions.some(s => s.id === statSessId)) statSessId = session ? session.id : sessions[0].id;
+        sessions.forEach(s => pick.append(el('button', {
+          class: 'btn mini filtBtn' + (statSessId === s.id ? ' toggleOn' : ''),
+          'data-stat-sess': s.id, text: (s.name || 'Session') + (!s.endedTs ? ' ●' : '') })));
+      }
+    } else { pick.hidden = true; }
+  }
+  $('#scopeNote').textContent = '';
 
   const base = scopeHistory();
 
@@ -2249,25 +2421,18 @@ function kv(k, v){ return el('span', { class: 'sKv' }, el('i', { text: k }), el(
 function renderSessionList(){
   const list = $('#sessionList'); if (!list) return;
   list.replaceChildren();
-  if (!sessions.length){ list.append(el('div', { class: 'recoEmpty', text: 'No finished sessions yet.' })); return; }
-  sessions.forEach((sn, idx) => {
+  if (!sessions.length){ list.append(el('div', { class: 'recoEmpty', text: 'No sessions yet.' })); return; }
+  list.append(el('div', { class: 'recoEmpty', text: 'Click a session to view just its stats above. Browse and edit its runs on the History tab.' }));
+  sessions.forEach(sn => {
     const s = computeStats(sn.runs);
-    const row = el('div', { class: 'sessRow' + (openSession === idx ? ' open' : ''), 'data-session-idx': String(idx) },
-      el('span', { class: 'sDate', text: fmtWhen(sn.endedTs) }),
-      el('span', { class: 'sName', text: sn.name }),
+    const sel = statsScope === 'session' && statSessId === sn.id;
+    const row = el('div', { class: 'sessRow' + (sel ? ' open' : ''), 'data-stats-open': sn.id },
+      el('span', { class: 'sDate', text: sn.endedTs ? fmtWhen(sn.endedTs) : 'active' }),
+      el('span', { class: 'sName', text: (sn.name || 'Session') + (!sn.endedTs ? ' ●' : '') }),
       el('span', { class: 'sMeta', text: `${sn.runs.length} run${sn.runs.length !== 1 ? 's' : ''}` }),
       el('span', { class: 'sMeta up', text: `${s.lootSum.toFixed(1)}M` }),
       el('span', { class: 'sMeta', text: `${s.iskHr.toFixed(1)}M/hr` }));
     list.append(row);
-    if (openSession === idx){
-      const d = el('div', { class: 'sessDetail' },
-        kv('Runs', String(s.n)), kv('Total time', fmtDur(s.totalSec)),
-        kv('Avg run', s.n ? fmtMMSS(s.avgSec) : '—'), kv('Total loot', s.lootSum.toFixed(1) + ' M'),
-        kv('Avg loot', s.avgLoot.toFixed(2) + ' M'), kv('ISK/hr', s.iskHr.toFixed(1) + ' M'),
-        kv('Best run', s.best ? `${fmtMMSS(s.best.remain)} left · ${s.best.tier} ${s.best.weather}` : '—'),
-        el('button', { class: 'btn mini danger', 'data-action': 'deleteSession', 'data-idx': String(idx), text: 'Delete' }));
-      list.append(d);
-    }
   });
 }
 
@@ -2277,21 +2442,19 @@ function startSession(){
   let target = parseInt($('#sessTarget')?.value, 10);
   if (!Number.isFinite(target) || target < 1) target = 5;
   target = Math.min(999, target);
-  session = { name, target, startedTs: Date.now(), runIds: [] };
-  saveSession();
-  statsScope = 'session';
+  session = { id: 's' + Date.now(), name, target, startedTs: Date.now(), endedTs: null, runs: [] };
+  sessions.unshift(session); saveSessions();
+  statsScope = 'session'; statSessId = session.id;
   toast(`Session started — ${name} · ${target} run${target > 1 ? 's' : ''} planned`, 'good');
   renderStats();
 }
 function finishSession(){
   if (!session) return;
-  const runs = sessionRuns(), name = session.name;
-  sessions.unshift({ name, target: session.target, startedTs: session.startedTs, endedTs: Date.now(), runs });
-  if (sessions.length > 100) sessions.length = 100;
-  saveSessions();
+  const runs = session.runs, name = session.name, id = session.id;
+  session.endedTs = Date.now(); saveSessions();
   const s = computeStats(runs);
-  session = null; saveSession();
-  statsScope = 'all'; openSession = 0;
+  session = null;
+  statsScope = 'session'; statSessId = id; openSession = id;
   renderStats(); renderHistory();
   toast(`Session "${name}" ended — ${runs.length} run${runs.length !== 1 ? 's' : ''} · ${s.lootSum.toFixed(1)}M · ${s.iskHr.toFixed(1)}M/hr`, 'good');
 }
@@ -2344,7 +2507,7 @@ function restoreDataset(){
 function exportJson(){
   download('eac-data.json', JSON.stringify({
     exportedAt: new Date().toISOString(),
-    app: 'EVE Abyss Companion · Web Edition v2.1.0',
+    app: 'EVE Abyss Companion · Web Edition v2.2.0',
     config, history, session, sessions, dataset: datasetMeta
   }, null, 2), 'application/json');
 }
@@ -2372,10 +2535,62 @@ function resetAll(){
 }
 function clearHistory(){
   if (!history.length) return;
-  if (!confirm('Clear all run history?')) return;
+  if (!confirm('Clear all standalone run history? (Sessions are not affected.)')) return;
   history = []; saveHistory();
-  renderHistory(); renderStats();
-  toast('History cleared');
+  renderHistory(); renderStats(); setLastRun(latestRun());
+  toast('Standalone history cleared');
+}
+
+/* ---- edit / delete individual runs & whole sessions ---- */
+let editingTs = null;
+function updateEditDelta(){
+  const b = parseIsk($('#editBefore').value), a = parseIsk($('#editAfter').value);
+  const d = (b !== null && a !== null) ? a - b : null;
+  const n = $('#editDeltaVal');
+  n.textContent = fmtDelta(d);
+  n.className = d != null ? (d >= 0 ? 'up' : 'dn') : 'dimc';
+}
+function openEditRun(ts){
+  const ref = findRunRef(ts); if (!ref) return;
+  editingTs = ts;
+  const tsel = $('#editTier'); tsel.replaceChildren(...TIERS.map(t => el('option', { value: t, text: t })));
+  const wsel = $('#editWeather'); wsel.replaceChildren(...WEATHERS.map(w => el('option', { value: w, text: w })));
+  tsel.value = ref.run.tier; wsel.value = ref.run.weather;
+  $('#editBefore').value = ref.run.before != null ? ref.run.before : '';
+  $('#editAfter').value = ref.run.after != null ? ref.run.after : '';
+  updateEditDelta();
+  $('#editModal').hidden = false;
+}
+function closeEditRun(){ $('#editModal').hidden = true; editingTs = null; }
+function saveEditRun(){
+  const ref = findRunRef(editingTs); if (!ref){ closeEditRun(); return; }
+  const r = ref.run;
+  r.tier = $('#editTier').value; r.weather = $('#editWeather').value;
+  const b = parseIsk($('#editBefore').value), a = parseIsk($('#editAfter').value);
+  r.before = b; r.after = a;
+  r.delta = (b !== null && a !== null) ? a - b : null;
+  ref.save();
+  closeEditRun();
+  renderHistory(); renderStats(); setLastRun(latestRun());
+  toast('Run updated', 'good');
+}
+function deleteRunById(ts){
+  const ref = findRunRef(ts); if (!ref) return;
+  if (!confirm('Delete this run? This cannot be undone.')) return;
+  ref.arr.splice(ref.idx, 1); ref.save();
+  renderHistory(); renderStats(); setLastRun(latestRun());
+  toast('Run deleted');
+}
+function deleteSessionById(id){
+  const i = sessions.findIndex(s => s.id === id); if (i < 0) return;
+  if (!confirm('Delete this whole session and all its runs? This cannot be undone.')) return;
+  if (session && session.id === id) session = null;
+  sessions.splice(i, 1); saveSessions();
+  if (statSessId === id){ statSessId = null; statsScope = 'all'; }
+  if (histOpenSess === id) histOpenSess = null;
+  if (openSession === id) openSession = null;
+  renderHistory(); renderStats(); setLastRun(latestRun());
+  toast('Session deleted');
 }
 
 /* ---------------- delegated events ---------------- */
@@ -2396,12 +2611,9 @@ const ACTIONS = {
   resetAll, clearHistory,
   startSession,
   endSession: () => { if (session && confirm('End this session now and save its summary?')) finishSession(); },
-  deleteSession: (b) => {
-    const i = +b.getAttribute('data-idx');
-    if (sessions[i] && confirm('Delete this saved session?')){
-      sessions.splice(i, 1); saveSessions(); openSession = null; renderSessionList();
-    }
-  },
+  editCancel: closeEditRun,
+  editSave: saveEditRun,
+  editDelete: () => { const ts = editingTs; if (ts != null){ closeEditRun(); deleteRunById(ts); } },
   libAll: () => { libDetectedOnly = false; renderLibrary(); fullRender(); },
   libDetected: () => { libDetectedOnly = true; renderLibrary(); fullRender(); },
   libClearSearch: () => { $('#npcSearch').value = ''; renderLibrary(); },
@@ -2412,6 +2624,7 @@ const ACTIONS = {
 function onRootClick(ev){
   const seg = ev.target.closest('.segBtn');
   if (seg){
+    if (run.state !== 'READY') return;           // tier/weather locked once a run starts
     const wrap = seg.closest('[data-seg]');
     if (wrap){
       const key = wrap.getAttribute('data-seg');
@@ -2424,23 +2637,36 @@ function onRootClick(ev){
   }
   const rb = ev.target.closest('.roomBtn');
   if (rb){ markRoom(+rb.getAttribute('data-room')); return; }
+  const eb = ev.target.closest('[data-edit-run]');
+  if (eb){ openEditRun(+eb.getAttribute('data-edit-run')); return; }
+  const db = ev.target.closest('[data-del-run]');
+  if (db){ deleteRunById(+db.getAttribute('data-del-run')); return; }
+  const dsb = ev.target.closest('[data-del-session]');
+  if (dsb){ deleteSessionById(dsb.getAttribute('data-del-session')); return; }
   const row = ev.target.closest('.npcRow');
   if (row){ selectNpc(row.getAttribute('data-name')); return; }
   const tab = ev.target.closest('.tabBtn');
   if (tab){ setTab(tab.getAttribute('data-tab')); return; }
+  const hv = ev.target.closest('[data-histview]');
+  if (hv){ histView = hv.getAttribute('data-histview'); renderHistory(); return; }
+  const hs = ev.target.closest('[data-session-id]');
+  if (hs){ const id = hs.getAttribute('data-session-id'); histOpenSess = (histOpenSess === id ? null : id); renderHistory(); return; }
   const sc = ev.target.closest('[data-scope]');
   if (sc){ statsScope = sc.getAttribute('data-scope'); renderStats(); return; }
+  const ssp = ev.target.closest('[data-stat-sess]');
+  if (ssp){ statSessId = ssp.getAttribute('data-stat-sess'); renderStats(); return; }
   const ftt = ev.target.closest('[data-filt-tier]');
   if (ftt){ filterTier = ftt.getAttribute('data-filt-tier') || null; filterWeather = null; renderStats(); return; }
   const ftw = ev.target.closest('[data-filt-weather]');
   if (ftw){ filterWeather = ftw.getAttribute('data-filt-weather') || null; renderStats(); return; }
-  const srow = ev.target.closest('[data-session-idx]');
-  if (srow){ const i = +srow.getAttribute('data-session-idx'); openSession = (openSession === i ? null : i); renderSessionList(); return; }
+  const sro = ev.target.closest('[data-stats-open]');
+  if (sro){ statSessId = sro.getAttribute('data-stats-open'); statsScope = 'session'; renderStats(); return; }
   const act = ev.target.closest('[data-action]');
   if (act){ const fn = ACTIONS[act.getAttribute('data-action')]; if (fn) fn(act); }
 }
 function onRootInput(ev){
   const t = ev.target;
+  if (t.id === 'editBefore' || t.id === 'editAfter'){ updateEditDelta(); return; }
   const m = t.getAttribute && t.getAttribute('data-model');
   if (m){
     const v = sanitizeIsk(t.value);
@@ -2504,7 +2730,7 @@ async function init(){
   });
 
   applyTheme();
-  setLastRun(history[0] || null);
+  setLastRun(latestRun());
   await monitor.restore();
 
   renderLibrary(); renderDetail(); renderHistory(); renderStats();
