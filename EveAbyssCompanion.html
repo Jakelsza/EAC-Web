@@ -1850,10 +1850,11 @@ function openNpcPopover(chip, entry, e){
     r.append(lb, pill); pop.append(r);
   }
 
-  row('Threat', entry.threat);
-  row('EWAR', entry.ewar);
-  row('Dmg type', entry.damage_dealt || entry.dmg);
-  row('Weak to', entry.weak_to || entry.weakTo);
+  const _raw = entry.raw || {};
+  row('Threat', entry.threat || _raw.threat);
+  row('EWAR', entry.ewar || _raw.ewar);
+  row('Dmg type', entry.damage_dealt || _raw.damage_dealt);
+  row('Weak to', entry.weakTo || entry.weak_to || _raw.weak_to);
 
   if (entry.notes){
     const n = document.createElement('div'); n.className = 'npNotes';
