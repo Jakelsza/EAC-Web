@@ -67,13 +67,12 @@
   .scope .sc{flex:1; text-align:center; background:var(--hull); border:0.5px solid var(--edge); border-radius:8px; padding:9px 0; font-size:12px; color:var(--dim);}
   .scope .sc.on{border-color:var(--accent); color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,transparent);}
   .row{margin:0 12px 7px; background:var(--hull); border:0.5px solid var(--edge); border-radius:12px; padding:11px 13px;}
-  .row.rt{border-left:2px solid var(--good);}
-  .row.rl{border-left:2px solid #FFD23F;}
-  .row.rc{border-left:2px solid var(--accent);}
+  .row.loss{border-left:2px solid var(--warn);}
   .row-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
   .row-tw{font-size:13px; color:var(--ink); display:flex; align-items:center; gap:6px;}
   .row-loot{font-size:13px; color:var(--good);}
   .row-loot.none{color:var(--faint);}
+  .row-loot.neg{color:var(--warn);}
   .row-bot{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
   .row-time{font-size:11px; color:var(--dim);}
   .row-splits{font-size:10px; color:var(--faint); flex:1; min-width:110px;}
@@ -83,7 +82,7 @@
   .row-act .ra.del{color:color-mix(in srgb,var(--warn) 70%,transparent); border-color:color-mix(in srgb,var(--warn) 25%,transparent);}
   .badges{display:inline-flex; gap:3px;}
   .bdg{width:15px; height:15px; border-radius:3px; font-size:9px; font-weight:500; display:flex; align-items:center; justify-content:center; color:var(--void);}
-  .bdg.t{background:var(--good);} .bdg.l{background:#FFD23F;} .bdg.c{background:var(--accent);}
+  .bdg.t{background:var(--good);} .bdg.l{background:#ffffff;} .bdg.c{background:var(--accent);}
   .empty{padding:40px 18px; text-align:center; color:var(--faint); font-size:13px; line-height:1.7;}
   .filters{display:flex; flex-wrap:wrap; gap:6px; padding:2px 16px 10px;}
   .chip{background:var(--hull); border:0.5px solid var(--edge); border-radius:18px; padding:6px 13px; font-size:12px; color:var(--dim);}
@@ -190,7 +189,7 @@
   </section>
   <section class="screen" id="screen-about">
     <div class="ptitle">About</div>
-    <div class="about-v"><div class="bn">EVE Abyss Companion</div><div class="vn">Mobile · v1.1.0</div></div>
+    <div class="about-v"><div class="bn">EVE Abyss Companion</div><div class="vn">Mobile · v1.1.1</div></div>
     <div class="prose" id="aboutBody"></div>
     <div class="lk"><a href="https://github.com/Jakelsza/EAC-Web">GitHub</a><a href="https://ko-fi.com/jakkelsza">Ko-fi</a></div>
     <div class="prose" style="padding-top:4px;">
@@ -431,10 +430,12 @@ function renderSessBox(){
 }
 
 function runRowHtml(r,scope,sessionId,records){
-  var f=recordFlags(records,r),cls=f.t?'rt':(f.l?'rl':(f.c?'rc':'')),bdg='';
+  var f=recordFlags(records,r),bdg='';
   if(f.t)bdg+='<span class="bdg t">T</span>';if(f.l)bdg+='<span class="bdg l">$</span>';if(f.c)bdg+='<span class="bdg c">★</span>';
+  var loss=(r.delta!=null&&r.delta<0),cls=loss?'loss':'';
+  var lootCls=r.delta==null?'none':(loss?'neg':'');
   var sid=sessionId?("'"+sessionId+"'"):'null';
-  return '<div class="row '+cls+'"><div class="row-top"><div class="row-tw">'+r.tier+' · '+r.weather+(bdg?' <span class="badges">'+bdg+'</span>':'')+'</div><div class="row-loot'+(r.delta==null?' none':'')+'">'+fmtDelta(r.delta)+'</div></div>'
+  return '<div class="row '+cls+'"><div class="row-top"><div class="row-tw">'+r.tier+' · '+r.weather+(bdg?' <span class="badges">'+bdg+'</span>':'')+'</div><div class="row-loot'+(lootCls?' '+lootCls:'')+'">'+fmtDelta(r.delta)+'</div></div>'
     +'<div class="row-bot"><div class="row-time">'+fmtDur(r.elapsedSec)+'</div><div class="row-splits">'+(r.splits.length?fmtSplits(r.splits):'—')+'</div><div class="row-date">'+fmtDate(r.ts)+'</div></div>'
     +'<div class="row-act"><div class="ra" onclick="openEdit(\''+scope+'\','+sid+',\''+r.id+'\')">Edit</div><div class="ra del" onclick="deleteRun(\''+scope+'\','+sid+',\''+r.id+'\')">Delete</div></div></div>';
 }
@@ -573,7 +574,7 @@ function deleteSession(id){
 }
 
 function renderGuide(){
-  document.getElementById('guideBody').innerHTML='<h3>The basics</h3>Each Abyssal pocket gives you <b>20 minutes</b> across three rooms. The timer counts down the moment you take the gate — tap <b>Start</b> as you enter. If the timer hits zero before you exit the third room, your ship is destroyed.<h3>Using this app</h3>Set your <b>tier</b> and <b>weather</b> by tapping the pills, then tap <b>Start</b>. Tap <b>R1 / R2 / R3</b> as you clear each room to log your split times — tapping <b>R3</b> stops the timer automatically. Enter your cargo value <b>before</b> and <b>after</b> to track loot (comma or dot both work). Tap <b>Submit</b> to save the run.<h3>Sessions</h3>Start a session with a target run count to track a farming block separately. Its runs are stored on their own — open the <b>Sessions</b> tab in History to see every run in a session, and pick a session under Stats to see just its numbers.<h3>Editing</h3>On any run in History tap <b>Edit</b> to fix the loot, tier or weather afterwards, or <b>Delete</b> to remove it. Whole sessions can be deleted from the Sessions list.<h3>Weather colours</h3><span class="tag" style="background:#9B6BFF22;color:#9B6BFF">Dark</span><span class="tag" style="background:#FFD23F22;color:#FFD23F">Electrical</span><span class="tag" style="background:#2EE6A622;color:#2EE6A6">Exotic</span><span class="tag" style="background:#FF6A3D22;color:#FF6A3D">Firestorm</span><span class="tag" style="background:#7CE04A22;color:#7CE04A">Gamma</span><br><br>The timer ring and accents shift colour with your selected tier and weather. The ring turns <b style="color:var(--warn)">red under 5 minutes</b> and pulses under one minute.<h3>Stay alive</h3>Keep moving — sitting still stacks incoming damage. Do not overheat your modules for too long or they burn out when you need them most. Watch the clock on every room.';
+  document.getElementById('guideBody').innerHTML='<h3>The basics</h3>Each Abyssal pocket gives you <b>20 minutes</b> across three rooms. The timer counts down the moment you take the gate — tap <b>Start</b> as you enter. If the timer hits zero before you exit the third room, your ship is destroyed.<h3>Using this app</h3>Set your <b>tier</b> and <b>weather</b> by tapping the pills, then tap <b>Start</b>. Tap <b>R1 / R2 / R3</b> as you clear each room to log your split times — tapping <b>R3</b> stops the timer automatically. Enter your cargo value <b>before</b> and <b>after</b> to track loot (comma or dot both work). Tap <b>Submit</b> to save the run.<h3>Sessions</h3>Start a session with a target run count to track a farming block separately. Its runs are stored on their own — open the <b>Sessions</b> tab in History to see every run in a session, and pick a session under Stats to see just its numbers.<h3>Editing</h3>On any run in History tap <b>Edit</b> to fix the loot, tier or weather afterwards, or <b>Delete</b> to remove it. Whole sessions can be deleted from the Sessions list.<h3>Run badges</h3>Each run can earn record badges: <b style="color:var(--good)">T</b> fastest time, <b style="color:#fff">$</b> best loot, <b style="color:var(--accent)">★</b> best ISK/hr — each per tier and weather. A run where loot came out negative (filament cost more than you earned) shows its loot in <b style="color:var(--warn)">red</b> with a red left edge.<h3>Weather colours</h3><span class="tag" style="background:#9B6BFF22;color:#9B6BFF">Dark</span><span class="tag" style="background:#FFD23F22;color:#FFD23F">Electrical</span><span class="tag" style="background:#2EE6A622;color:#2EE6A6">Exotic</span><span class="tag" style="background:#FF6A3D22;color:#FF6A3D">Firestorm</span><span class="tag" style="background:#7CE04A22;color:#7CE04A">Gamma</span><br><br>The timer ring and accents shift colour with your selected tier and weather. The ring turns <b style="color:var(--warn)">red under 5 minutes</b> and pulses under one minute.<h3>Stay alive</h3>Keep moving — sitting still stacks incoming damage. Do not overheat your modules for too long or they burn out when you need them most. Watch the clock on every room.';
 }
 function renderAbout(){
   document.getElementById('audioToggle').textContent=config.audio?'On':'Off';
