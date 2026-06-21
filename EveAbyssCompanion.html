@@ -198,6 +198,23 @@ body::after {
 }
 .droneWarn.show { animation: pulse 1s ease-in-out infinite; }
 
+/* ── weather effect card (timer panel) ── */
+.weatherCard {
+  margin-top: 16px; padding: 11px 13px 12px;
+  background: var(--hull); border: 1px solid var(--edge);
+  clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+  text-align: left;
+}
+.weatherCard:empty { display: none; }
+.wcHead { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; flex-wrap: wrap; }
+.wcIcon { font-size: 15px; line-height: 1; }
+.wcTitle { font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--text); text-transform: uppercase; }
+.wcTier { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.wcLine { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text); margin-top: 5px; }
+.wcPen { font-weight: 600; }
+.wcBuff { color: var(--ok); padding-left: 15px; font-size: 11.5px; }
+.wcDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
 /* ---------- buttons ---------- */
 .btn {
   font-family: var(--sans); font-size: 13px; font-weight: 600; letter-spacing: .04em;
@@ -742,6 +759,7 @@ td.rowActs { white-space: nowrap; text-align: right; }
         <div class="splitLine" data-bind="splits"></div>
         <div class="droneRow" data-dronectl></div>
         <div class="droneWarn" data-bind="dronewarn"></div>
+        <div class="weatherCard" id="weatherCard"></div>
       </div>
 
       <!-- ============ WORKFLOW PANEL ============ -->
@@ -1158,6 +1176,65 @@ td.rowActs { white-space: nowrap; text-align: right; }
 const RUN_SECONDS = 1200;
 const TIERS = ['T0','T1','T2','T3','T4','T5','T6'];
 const WEATHERS = ['Electrical','Exotic','Firestorm','Gamma','Dark'];
+
+/* ── Weather effect data (verified: EVE University wiki) ──
+   Penalty is randomised PER SITE, not fixed per tier:
+     T0–T3 → −30% or −50% ; T4–T6 → −50% or −70%
+   Dark has no resist penalty (turret range down instead). */
+const WEATHER_FX = {
+  Electrical: { icon:'⚡', penalty:'EM resist',        buff:'+50% cap recharge' },
+  Firestorm:  { icon:'🔥', penalty:'Thermal resist',   buff:'+50% armor HP' },
+  Exotic:     { icon:'☣', penalty:'Kinetic resist',   buff:'+50% scan res' },
+  Gamma:      { icon:'☢', penalty:'Explosive resist', buff:'+50% shield HP' },
+  Dark:       { icon:'🌑', penalty:null,               buff:'+50% velocity · −turret range' }
+};
+/* Tier display names + which random penalty band applies */
+const TIER_INFO = {
+  T0:{name:'Tranquil',    band:'−30% or −50%'},
+  T1:{name:'Calm',        band:'−30% or −50%'},
+  T2:{name:'Agitated',    band:'−30% or −50%'},
+  T3:{name:'Fierce',      band:'−30% or −50%'},
+  T4:{name:'Raging',      band:'−50% or −70%'},
+  T5:{name:'Chaotic',     band:'−50% or −70%'},
+  T6:{name:'Cataclysmic', band:'−50% or −70%'}
+};
+
+function renderWeatherCard(){
+  const box = document.getElementById('weatherCard');
+  if (!box) return;
+  const w = config.weather, t = config.tier;
+  const fx = WEATHER_FX[w]; const ti = TIER_INFO[t] || TIER_INFO.T3;
+  if (!fx){ box.replaceChildren(); return; }
+  box.replaceChildren();
+
+  // header: icon + "T3 Electrical" + (Fierce)
+  const head = el('div', { class: 'wcHead' });
+  head.append(el('span', { class: 'wcIcon', text: fx.icon }));
+  head.append(el('span', { class: 'wcTitle', text: `${t} ${w}` }));
+  head.append(el('span', { class: 'wcTier', text: ti.name }));
+  box.append(head);
+
+  // penalty line — the one that matters
+  const pen = el('div', { class: 'wcLine wcPen' });
+  if (fx.penalty){
+    const isHigh = (t === 'T4' || t === 'T5' || t === 'T6');
+    const dot = el('span', { class: 'wcDot' });
+    dot.style.background = isHigh ? '#FF3B5C' : '#FF8C42';
+    pen.append(dot);
+    pen.append(el('span', { text: `${ti.band} ${fx.penalty}` }));
+  } else {
+    const dot = el('span', { class: 'wcDot' }); dot.style.background = 'var(--ok)';
+    pen.append(dot);
+    pen.append(el('span', { text: 'No resist penalty' }));
+  }
+  box.append(pen);
+
+  // buff line
+  const buff = el('div', { class: 'wcLine wcBuff' });
+  buff.append(el('span', { text: fx.buff }));
+  box.append(buff);
+}
+
 /* Base hue per weather (≈ tier T3). Tier shifts lightness/saturation. */
 const WEATHER_BASE = {
   Electrical: '#FFD23F',  // yellow — electrical arcs
@@ -2188,6 +2265,7 @@ function renderTick(){
 function fullRender(){
   renderStatusBits();
   renderTick();
+  renderWeatherCard();
 
   const dispRoom = run.state === 'PENDING' ? 3 : run.room;
   qa('[data-bind="roomdisp"]').forEach(n => { n.innerHTML = `Room: <b>${dispRoom}</b> / 3`; });
