@@ -431,6 +431,9 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 .recBar { opacity: .85; }
 .recBar:hover { opacity: 1; }
 .recZero { stroke: var(--edge-2); stroke-width: 1; stroke-dasharray: 2 2; }
+.recAxis { fill: var(--dim); font-size: 8px; font-family: var(--mono); }
+.recBarVal { fill: var(--text); font-size: 8px; font-family: var(--mono); }
+.recBarVal.neg { fill: var(--bad); }
 .recTable { width: 100%; }
 .recTable td.negCell { color: var(--bad); }
 .statCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
@@ -2684,42 +2687,63 @@ function renderRecentSummary(runs){
 function drawRecentGraph(box, chrono, valFn, kind){
   if (!box) return;
   box.replaceChildren();
-  if (!chrono.length){ box.append(el('div', { class: 'recEmpty', text: '—' })); return; }
+  if (!chrono.length){ box.append(el('div', { class: 'recEmpty', text: '\u2014' })); return; }
 
-  const W = 320, H = 120, padL = 6, padR = 6, padT = 10, padB = 16;
+  const W = 320, H = 130, padL = 34, padR = 6, padT = 14, padB = 16;
   const vals = chrono.map(valFn);
   let max = Math.max(...vals, 0);
   let min = Math.min(...vals, 0);
-  if (kind === 'time'){ min = 0; }                 // time baseline at 0
-  if (max === min) max = min + 1;                  // avoid divide by zero
+  if (kind === 'time'){ min = 0; }
+  if (max === min) max = min + 1;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const n = chrono.length;
   const barGap = 3;
   const barW = Math.max(4, (plotW - barGap*(n-1)) / n);
+  const showVals = n <= 8;   // per-bar numbers only when uncrowded
 
-  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS,'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('class', 'recSvg');
-  svg.setAttribute('preserveAspectRatio', 'none');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
-  // zero baseline (for loot, where negatives exist)
   const yOf = v => padT + plotH - ((v - min) / (max - min)) * plotH;
   const zeroY = yOf(0);
 
+  const fmtAxis = v => kind === 'time' ? fmtMMSS(v) : (Math.round(v*10)/10).toFixed(1);
+  const fmtBar  = v => kind === 'time' ? fmtMMSS(v) : (Math.round(v*100)/100).toFixed(1);
+
+  // axis labels: max (top) and min (bottom) on the left gutter
+  function axisLabel(v, y){
+    const t = document.createElementNS(NS,'text');
+    t.setAttribute('x', padL - 5);
+    t.setAttribute('y', y);
+    t.setAttribute('class', 'recAxis');
+    t.setAttribute('text-anchor', 'end');
+    t.setAttribute('dominant-baseline', 'middle');
+    t.textContent = fmtAxis(v);
+    // axis text doesn't stretch with preserveAspectRatio=none, so unset it via vector-effect
+    t.setAttribute('vector-effect', 'non-scaling-stroke');
+    svg.append(t);
+  }
+  axisLabel(max, yOf(max) + 1);
+  if (min < 0 || kind === 'time') axisLabel(min, yOf(min) - 1);
+
+  // zero baseline for loot
   if (kind === 'loot'){
-    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    const ln = document.createElementNS(NS,'line');
     ln.setAttribute('x1', padL); ln.setAttribute('x2', W - padR);
     ln.setAttribute('y1', zeroY); ln.setAttribute('y2', zeroY);
     ln.setAttribute('class', 'recZero');
     svg.append(ln);
   }
 
-  chrono.forEach((r, i) => {
-    const v = vals[i];
-    const x = padL + i * (barW + barGap);
+  chrono.forEach((r, idx) => {
+    const v = vals[idx];
+    const x = padL + idx * (barW + barGap);
     const y = kind === 'loot' ? Math.min(yOf(v), zeroY) : yOf(v);
     const h = kind === 'loot' ? Math.abs(yOf(v) - zeroY) : (padT + plotH - yOf(v));
-    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const rect = document.createElementNS(NS,'rect');
     rect.setAttribute('x', x.toFixed(1));
     rect.setAttribute('y', y.toFixed(1));
     rect.setAttribute('width', barW.toFixed(1));
@@ -2728,13 +2752,29 @@ function drawRecentGraph(box, chrono, valFn, kind){
     if (kind === 'loot') cls += (v < 0 ? ' neg' : ' pos');
     else cls += ' time';
     rect.setAttribute('class', cls);
-    // tooltip
-    const title = document.createElementNS('http://www.w3.org/2000/svg','title');
+    const title = document.createElementNS(NS,'title');
     title.textContent = kind === 'loot'
-      ? `${r.tier} ${r.weather} · ${fmtDelta(r.delta)}`
-      : `${r.tier} ${r.weather} · ${fmtMMSS(r.elapsed)}`;
+      ? `${r.tier} ${r.weather} \u00b7 ${fmtDelta(r.delta)}`
+      : `${r.tier} ${r.weather} \u00b7 ${fmtMMSS(r.elapsed)}`;
     rect.append(title);
     svg.append(rect);
+
+    // per-bar value label when uncrowded
+    if (showVals){
+      const t = document.createElementNS(NS,'text');
+      t.setAttribute('x', (x + barW/2).toFixed(1));
+      let labelY;
+      if (kind === 'loot' && v < 0){
+        labelY = (y + h) + 9;          // below the downward loss bar, in red
+      } else {
+        labelY = y - 3;                // above the bar
+      }
+      t.setAttribute('y', Math.max(9, labelY).toFixed(1));
+      t.setAttribute('class', 'recBarVal' + (kind === 'loot' && v < 0 ? ' neg' : ''));
+      t.setAttribute('text-anchor', 'middle');
+      t.textContent = fmtBar(v);
+      svg.append(t);
+    }
   });
 
   box.append(svg);
