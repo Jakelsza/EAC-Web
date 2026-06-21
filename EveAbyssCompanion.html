@@ -278,11 +278,28 @@ body::after {
 .actionRow .btn { flex: 1; }
 
 .lastRun {
-  margin-top: 14px; padding: 8px 12px;
-  border: 1px dashed var(--edge); color: var(--dim);
-  font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+  margin-top: 14px; padding: 8px 10px 9px;
+  border: 1px solid var(--edge);
+  clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+  font-family: var(--mono);
 }
-.lastRun b { color: var(--text); }
+.lastRun .lrEmpty { color: var(--dim); font-size: 11.5px; letter-spacing: .04em; padding: 2px 2px; }
+.lastRun .lrHead {
+  font-size: 9px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--dim); margin-bottom: 6px;
+}
+.lastRun .lrRow {
+  display: grid; grid-template-columns: 1fr auto auto auto; gap: 10px; align-items: baseline;
+  font-size: 11.5px; color: var(--text); padding: 3px 2px;
+  border-top: 1px solid color-mix(in oklab, var(--edge) 55%, transparent);
+}
+.lastRun .lrRow:first-of-type { border-top: none; }
+.lastRun .lrTw { color: var(--text); letter-spacing: .03em; }
+.lastRun .lrRooms { color: var(--dim); }
+.lastRun .lrTime { color: var(--text); }
+.lastRun .lrDelta { color: var(--ok); text-align: right; min-width: 64px; }
+.lastRun .lrDelta.neg { color: var(--bad); }
+.lastRun .lrRow.loss { box-shadow: inset 2px 0 0 var(--bad); }
 
 /* ---------- systems panel ---------- */
 .togRow {
@@ -1801,7 +1818,7 @@ function finalizeRun(){
   } else {
     history.unshift(rec); saveHistory();
   }
-  setLastRun(rec);
+  setLastRun();
   finishedUntil = Date.now() + 2200;
   const _carryAfter = run.after;
   resetSession(true, _carryAfter);
@@ -1812,10 +1829,30 @@ function finalizeRun(){
 function endRun(){ if (run.state === 'RUNNING' || run.state === 'PENDING') finalizeRun(); }
 function submitRun(){ if (run.state === 'PENDING') finalizeRun(); }
 
-function setLastRun(rec){
-  $('#lastRun').textContent = rec
-    ? `Last run — ${rec.tier} ${rec.weather} · ${rec.rooms}/3 · ${fmtMMSS(rec.elapsed)} elapsed · ${fmtDelta(rec.delta)}`
-    : 'No runs logged yet.';
+function setLastRun(){
+  // Renders the last 3 runs (standalone + session), newest first.
+  const box = $('#lastRun');
+  if (!box) return;
+  const recent = allRuns().slice().sort((a,b) => b.ts - a.ts).slice(0, 3);
+  box.replaceChildren();
+  if (!recent.length){
+    box.classList.remove('hasRuns');
+    box.append(el('div', { class: 'lrEmpty', text: 'No runs logged yet.' }));
+    return;
+  }
+  box.classList.add('hasRuns');
+  const head = el('div', { class: 'lrHead', text: 'Last runs' });
+  box.append(head);
+  recent.forEach(r => {
+    const row = el('div', { class: 'lrRow' + (typeof r.delta === 'number' && r.delta < 0 ? ' loss' : '') });
+    row.append(el('span', { class: 'lrTw', text: `${r.tier} ${r.weather}` }));
+    row.append(el('span', { class: 'lrRooms', text: `${r.rooms}/3` }));
+    row.append(el('span', { class: 'lrTime', text: fmtMMSS(r.elapsed) }));
+    const d = el('span', { class: 'lrDelta', text: fmtDelta(r.delta) });
+    if (typeof r.delta === 'number' && r.delta < 0) d.classList.add('neg');
+    row.append(d);
+    box.append(row);
+  });
 }
 
 /* ---------------- detections ---------------- */
