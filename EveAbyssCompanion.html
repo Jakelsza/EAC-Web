@@ -212,7 +212,7 @@ body::after {
 .wcTier { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
 .wcLine { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text); margin-top: 5px; }
 .wcPen { font-weight: 600; }
-.wcBuff { color: var(--ok); padding-left: 15px; font-size: 11.5px; }
+.wcBuff { color: var(--good); padding-left: 15px; font-size: 11.5px; }
 .wcDot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 /* ---------- buttons ---------- */
@@ -297,7 +297,7 @@ body::after {
 .lastRun .lrTw { color: var(--text); letter-spacing: .03em; }
 .lastRun .lrRooms { color: var(--dim); }
 .lastRun .lrTime { color: var(--text); }
-.lastRun .lrDelta { color: var(--ok); text-align: right; min-width: 64px; }
+.lastRun .lrDelta { color: var(--good); text-align: right; min-width: 64px; }
 .lastRun .lrDelta.neg { color: var(--bad); }
 .lastRun .lrRow.loss { box-shadow: inset 2px 0 0 var(--bad); }
 
@@ -404,6 +404,35 @@ td.up { color: var(--good); } td.dn { color: var(--bad); }
 .barRow { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
 .histCount { font-family: var(--mono); font-size: 11px; color: var(--dim); letter-spacing: .06em; }
 
+/* ── Recent tab ── */
+.recentWrap { padding: 4px 2px; }
+.recentFilters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.recFilt.toggleOn { background: var(--accent); color: #04060A; border-color: var(--accent); }
+.recentSummary { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 8px; margin-bottom: 16px; }
+.recCard {
+  background: var(--hull); border: 1px solid var(--edge); padding: 8px 10px;
+  clip-path: polygon(4px 0,100% 0,100% calc(100% - 4px),calc(100% - 4px) 100%,0 100%,0 4px);
+}
+.recCardV { font-size: 15px; font-weight: 700; color: var(--text); font-family: var(--mono); }
+.recCardK { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin-top: 3px; }
+.recEmpty { color: var(--dim); font-size: 12px; padding: 12px 2px; }
+.recentGraphs { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+@media (max-width: 720px){ .recentGraphs { grid-template-columns: 1fr; } }
+.recGraph {
+  background: var(--hull); border: 1px solid var(--edge); padding: 10px 12px 8px;
+  clip-path: polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px);
+}
+.recGraphLabel { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-bottom: 8px; }
+.recGraphBody { width: 100%; }
+.recSvg { width: 100%; height: 120px; display: block; }
+.recBar.pos { fill: var(--good); }
+.recBar.neg { fill: var(--bad); }
+.recBar.time { fill: var(--accent); }
+.recBar { opacity: .85; }
+.recBar:hover { opacity: 1; }
+.recZero { stroke: var(--edge-2); stroke-width: 1; stroke-dasharray: 2 2; }
+.recTable { width: 100%; }
+.recTable td.negCell { color: var(--bad); }
 .statCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; margin-bottom: 18px; }
 .statCard { border: 1px solid var(--edge); padding: 12px 14px; background: var(--hull); }
 .statCard .k { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
@@ -848,6 +877,7 @@ td.rowActs { white-space: nowrap; text-align: right; }
         <button class="tabBtn on" data-tab="lib">NPC Library</button>
         <button class="tabBtn" data-tab="hist">History</button>
         <button class="tabBtn" data-tab="stats">Stats</button>
+        <button class="tabBtn" data-tab="recent">Recent</button>
         <button class="tabBtn" data-tab="guide">Guide</button>
         <button class="tabBtn" data-tab="about">About</button>
       </nav>
@@ -928,6 +958,30 @@ td.rowActs { white-space: nowrap; text-align: right; }
         <div class="statSection" id="sessionHistWrap">
           <div class="workLabel">Session history</div>
           <div class="sessionList" id="sessionList"></div>
+        </div>
+      </div>
+
+      <div class="tabPane" id="tab-recent">
+        <div class="recentWrap">
+          <div class="recentFilters" id="recentFilters">
+            <button class="btn mini recFilt toggleOn" data-recwin="5">Last 5</button>
+            <button class="btn mini recFilt" data-recwin="10">Last 10</button>
+            <button class="btn mini recFilt" data-recwin="20">Last 20</button>
+            <button class="btn mini recFilt" data-recwin="today">Today</button>
+            <button class="btn mini recFilt" data-recwin="7d">Last 7 days</button>
+          </div>
+          <div class="recentSummary" id="recentSummary"></div>
+          <div class="recentGraphs" id="recentGraphs">
+            <div class="recGraph">
+              <div class="recGraphLabel">Loot per run (M ISK)</div>
+              <div class="recGraphBody" id="recGraphLoot"></div>
+            </div>
+            <div class="recGraph">
+              <div class="recGraphLabel">Run time (mm:ss)</div>
+              <div class="recGraphBody" id="recGraphTime"></div>
+            </div>
+          </div>
+          <div class="recentList" id="recentList"></div>
         </div>
       </div>
 
@@ -1240,7 +1294,7 @@ function renderWeatherCard(){
     pen.append(dot);
     pen.append(el('span', { text: `${ti.band} ${fx.penalty}` }));
   } else {
-    const dot = el('span', { class: 'wcDot' }); dot.style.background = 'var(--ok)';
+    const dot = el('span', { class: 'wcDot' }); dot.style.background = 'var(--good)';
     pen.append(dot);
     pen.append(el('span', { text: 'No resist penalty' }));
   }
@@ -2526,6 +2580,7 @@ function statCard(k, v, good){
 
 /* ---- stats view state ---- */
 let statsScope = 'all';     // 'all' | 'session'
+let recentWin = '10';   // active Recent window filter
 let statSessId = null;      // when scope==='session', which session id
 let filterTier = null;      // null | 'T0'..'T6'
 let filterWeather = null;   // null | weather
@@ -2565,6 +2620,153 @@ function renderSessionBar(){
     );
     bar.append(form);
   }
+}
+
+/* ════════════ RECENT TAB ════════════ */
+function recentRuns(){
+  let runs = allRuns().slice().sort((a,b) => b.ts - a.ts);
+  const w = recentWin;
+  if (w === 'today'){
+    const start = new Date(); start.setHours(0,0,0,0);
+    runs = runs.filter(r => r.ts >= start.getTime());
+  } else if (w === '7d'){
+    const cutoff = Date.now() - 7*24*3600*1000;
+    runs = runs.filter(r => r.ts >= cutoff);
+  } else {
+    runs = runs.slice(0, parseInt(w, 10) || 10);
+  }
+  return runs;
+}
+
+function renderRecent(){
+  // sync filter button states
+  qa('[data-recwin]').forEach(b => b.classList.toggle('toggleOn', b.getAttribute('data-recwin') === recentWin));
+
+  const runs = recentRuns();
+  const chrono = runs.slice().reverse(); // oldest→newest for left-to-right graphs
+
+  renderRecentSummary(runs);
+  drawRecentGraph($('#recGraphLoot'), chrono, r => (typeof r.delta === 'number' ? r.delta : 0), 'loot');
+  drawRecentGraph($('#recGraphTime'), chrono, r => (r.elapsed || 0), 'time');
+  renderRecentList(runs);
+}
+
+function renderRecentSummary(runs){
+  const box = $('#recentSummary'); if (!box) return;
+  box.replaceChildren();
+  if (!runs.length){
+    box.append(el('div', { class: 'recEmpty', text: 'No runs in this window.' }));
+    return;
+  }
+  const n = runs.length;
+  const totLoot = runs.reduce((s,r) => s + (typeof r.delta === 'number' ? r.delta : 0), 0);
+  const totSec = runs.reduce((s,r) => s + (r.elapsed || 0), 0);
+  const avgSec = totSec / n;
+  const iskHr = totSec > 0 ? totLoot / (totSec / 3600) : 0;
+  const full = runs.filter(r => r.rooms === 3).length;
+
+  const cards = [
+    ['Runs', String(n)],
+    ['Avg time', fmtMMSS(avgSec)],
+    ['Total loot', (totLoot >= 0 ? '+' : '') + totLoot.toFixed(1) + ' M'],
+    ['Avg loot', (totLoot/n).toFixed(2) + ' M'],
+    ['ISK/hr', iskHr.toFixed(1) + ' M'],
+    ['3/3 clears', full + '/' + n]
+  ];
+  cards.forEach(([k,v]) => {
+    const c = el('div', { class: 'recCard' });
+    c.append(el('div', { class: 'recCardV', text: v }));
+    c.append(el('div', { class: 'recCardK', text: k }));
+    box.append(c);
+  });
+}
+
+function drawRecentGraph(box, chrono, valFn, kind){
+  if (!box) return;
+  box.replaceChildren();
+  if (!chrono.length){ box.append(el('div', { class: 'recEmpty', text: '—' })); return; }
+
+  const W = 320, H = 120, padL = 6, padR = 6, padT = 10, padB = 16;
+  const vals = chrono.map(valFn);
+  let max = Math.max(...vals, 0);
+  let min = Math.min(...vals, 0);
+  if (kind === 'time'){ min = 0; }                 // time baseline at 0
+  if (max === min) max = min + 1;                  // avoid divide by zero
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const n = chrono.length;
+  const barGap = 3;
+  const barW = Math.max(4, (plotW - barGap*(n-1)) / n);
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class', 'recSvg');
+  svg.setAttribute('preserveAspectRatio', 'none');
+
+  // zero baseline (for loot, where negatives exist)
+  const yOf = v => padT + plotH - ((v - min) / (max - min)) * plotH;
+  const zeroY = yOf(0);
+
+  if (kind === 'loot'){
+    const ln = document.createElementNS('http://www.w3.org/2000/svg','line');
+    ln.setAttribute('x1', padL); ln.setAttribute('x2', W - padR);
+    ln.setAttribute('y1', zeroY); ln.setAttribute('y2', zeroY);
+    ln.setAttribute('class', 'recZero');
+    svg.append(ln);
+  }
+
+  chrono.forEach((r, i) => {
+    const v = vals[i];
+    const x = padL + i * (barW + barGap);
+    const y = kind === 'loot' ? Math.min(yOf(v), zeroY) : yOf(v);
+    const h = kind === 'loot' ? Math.abs(yOf(v) - zeroY) : (padT + plotH - yOf(v));
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('x', x.toFixed(1));
+    rect.setAttribute('y', y.toFixed(1));
+    rect.setAttribute('width', barW.toFixed(1));
+    rect.setAttribute('height', Math.max(1, h).toFixed(1));
+    let cls = 'recBar';
+    if (kind === 'loot') cls += (v < 0 ? ' neg' : ' pos');
+    else cls += ' time';
+    rect.setAttribute('class', cls);
+    // tooltip
+    const title = document.createElementNS('http://www.w3.org/2000/svg','title');
+    title.textContent = kind === 'loot'
+      ? `${r.tier} ${r.weather} · ${fmtDelta(r.delta)}`
+      : `${r.tier} ${r.weather} · ${fmtMMSS(r.elapsed)}`;
+    rect.append(title);
+    svg.append(rect);
+  });
+
+  box.append(svg);
+}
+
+function renderRecentList(runs){
+  const box = $('#recentList'); if (!box) return;
+  box.replaceChildren();
+  if (!runs.length) return;
+  const tbl = el('table', { class: 'data recTable' });
+  const thead = el('thead');
+  const htr = el('tr');
+  ['When','Tier','Weather','Rooms','Time','Loot'].forEach(h => htr.append(el('th', { text: h })));
+  thead.append(htr); tbl.append(thead);
+  const tb = el('tbody');
+  runs.forEach(r => {
+    const tr = el('tr');
+    if (typeof r.delta === 'number' && r.delta < 0) tr.className = 'lossRow';
+    const d = new Date(r.ts);
+    const when = pad2(d.getMonth()+1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    tr.append(el('td', { text: when }));
+    tr.append(el('td', { text: r.tier }));
+    tr.append(el('td', { text: r.weather }));
+    tr.append(el('td', { text: r.rooms + '/3' }));
+    tr.append(el('td', { text: fmtMMSS(r.elapsed) }));
+    const dt = el('td', { text: fmtDelta(r.delta) });
+    if (typeof r.delta === 'number' && r.delta < 0) dt.className = 'negCell';
+    tr.append(dt);
+    tb.append(tr);
+  });
+  tbl.append(tb);
+  box.append(tbl);
 }
 
 function renderStats(){
@@ -2731,6 +2933,7 @@ function setTab(id){
   $$('.tabPane').forEach(p => p.classList.toggle('on', p.id === 'tab-' + id));
   if (id === 'hist') renderHistory();
   if (id === 'stats') renderStats();
+  if (id === 'recent') renderRecent();
 }
 
 /* ---------------- wizard ---------------- */
@@ -2915,6 +3118,8 @@ function onRootClick(ev){
   if (tab){ setTab(tab.getAttribute('data-tab')); return; }
   const hv = ev.target.closest('[data-histview]');
   if (hv){ histView = hv.getAttribute('data-histview'); renderHistory(); return; }
+  const rf = ev.target.closest('[data-recwin]');
+  if (rf){ recentWin = rf.getAttribute('data-recwin'); renderRecent(); return; }
   const hs = ev.target.closest('[data-session-id]');
   if (hs){ const id = hs.getAttribute('data-session-id'); histOpenSess = (histOpenSess === id ? null : id); renderHistory(); return; }
   const sc = ev.target.closest('[data-scope]');
